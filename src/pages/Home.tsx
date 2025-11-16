@@ -3,9 +3,19 @@ import { Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, Paintbrush } from "lucide-react";
+import { Loader2, Sparkles, Paintbrush, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
@@ -20,10 +30,11 @@ const themes = [
 ];
 
 const Home = () => {
-  const { books, loading, generateBook, generateBookFromDrawing } = useBooks();
+  const { books, loading, generateBook, generateBookFromDrawing, deleteBook } = useBooks();
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [bookToDelete, setBookToDelete] = useState<string | null>(null);
 
   // Gökkuşağı Ormanı'nın Kayıp Rengi kitabını çizimden işaretle
   useEffect(() => {
@@ -84,6 +95,13 @@ const Home = () => {
     }
   };
 
+  const handleDeleteBook = (bookId: string) => {
+    if (deleteBook) {
+      deleteBook(bookId);
+      setBookToDelete(null);
+    }
+  };
+
   return (
     <div className="min-h-screen relative">
       <div 
@@ -109,32 +127,45 @@ const Home = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {books.map((book) => (
-              <Link
-                key={book.id}
-                to={`/book/${book.id}`}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary transition-all duration-300 hover:scale-105 hover:shadow-2xl"
-              >
-                {book.isFromDrawing && (
-                  <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-lg">
-                    <Paintbrush className="w-3.5 h-3.5" />
-                    Çizimden
+              <div key={book.id} className="relative group">
+                <Link
+                  to={`/book/${book.id}`}
+                  className="block relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                >
+                  {book.isFromDrawing && (
+                    <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-lg">
+                      <Paintbrush className="w-3.5 h-3.5" />
+                      Çizimden
+                    </div>
+                  )}
+                  <div className="p-8">
+                    <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
+                      {book.coverEmoji}
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
+                      {book.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">{book.theme}</p>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="bg-primary/10 text-primary px-3 py-1 rounded-full">
+                        {book.pages.length} sayfa
+                      </span>
+                    </div>
                   </div>
-                )}
-                <div className="p-8">
-                  <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
-                    {book.coverEmoji}
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
-                    {book.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">{book.theme}</p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-full">
-                      {book.pages.length} sayfa
-                    </span>
-                  </div>
-                </div>
-              </Link>
+                </Link>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setBookToDelete(book.id);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             ))}
           </div>
         </div>
@@ -278,6 +309,26 @@ const Home = () => {
           )}
         </div>
       </div>
+
+      <AlertDialog open={!!bookToDelete} onOpenChange={() => setBookToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kitabı silmek istediğinize emin misiniz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu işlem geri alınamaz. Kitap kalıcı olarak silinecektir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bookToDelete && handleDeleteBook(bookToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
