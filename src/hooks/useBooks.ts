@@ -244,5 +244,16 @@ export const useBooks = () => {
     }
   };
 
-  return { books, loading, generateBook, generateBookFromDrawing };
+  const deleteBook = (bookId: string) => {
+    try {
+      const updatedBooks = books.filter(book => book.id !== bookId);
+      saveBooks(updatedBooks);
+      toast.success("Kitap silindi");
+    } catch (error) {
+      console.error("Kitap silinemedi:", error);
+      toast.error("Kitap silinemedi");
+    }
+  };
+
+  return { books, loading, generateBook, generateBookFromDrawing, deleteBook };
 };
