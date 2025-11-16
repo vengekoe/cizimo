@@ -10,21 +10,28 @@ interface BookCoverProps {
 }
 
 const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", coverImage }: BookCoverProps) => {
+  // Her kitap için benzersiz gradient oluştur
+  const gradientColors = [
+    "from-purple-500/30 via-pink-500/30 to-red-500/30",
+    "from-blue-500/30 via-cyan-500/30 to-teal-500/30",
+    "from-green-500/30 via-emerald-500/30 to-lime-500/30",
+    "from-orange-500/30 via-amber-500/30 to-yellow-500/30",
+    "from-indigo-500/30 via-violet-500/30 to-purple-500/30",
+  ];
+  
+  const randomGradient = gradientColors[Math.floor(Math.random() * gradientColors.length)];
+  
   return (
-    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
+    <div className={`relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br ${randomGradient}`}>
       <div className="absolute inset-0 animate-fade-in">
         {coverImage ? (
           <img 
             src={coverImage} 
-            alt="Kitap Kapağı - Çocuğun Çizimi" 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <img 
-            src={bookCoverImage} 
             alt="Kitap Kapağı" 
             className="w-full h-full object-cover"
           />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${randomGradient} opacity-50`} />
         )}
       </div>
       
