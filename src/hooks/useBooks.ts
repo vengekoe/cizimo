@@ -82,6 +82,8 @@ export const useBooks = () => {
   const generateBookFromDrawing = async (imageFile: File) => {
     setLoading(true);
     try {
+      const bookId = `book-${Date.now()}`;
+      
       // Resmi base64'e çevir
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
@@ -91,6 +93,11 @@ export const useBooks = () => {
       });
 
       const imageBase64 = await base64Promise;
+      
+      // Önce orijinal çizimi storage'a yükle
+      toast.loading("Çizim yükleniyor...");
+      const coverImageUrl = await uploadImageToStorage(imageBase64, bookId, -1); // -1 = cover image
+      
       toast.loading("Çizim analiz ediliyor...");
 
       // Çizimden hikaye oluştur
@@ -103,7 +110,6 @@ export const useBooks = () => {
 
       if (storyError) throw storyError;
 
-      const bookId = `book-${Date.now()}`;
       toast.dismiss();
       toast.loading("Hikaye görselleri oluşturuluyor...");
 
@@ -136,6 +142,7 @@ export const useBooks = () => {
         title: storyData.title,
         theme: storyData.metadata.theme,
         coverEmoji: storyData.pages[0]?.emoji || "🎨",
+        coverImage: coverImageUrl || undefined,
         pages,
       };
 

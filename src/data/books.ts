@@ -12,6 +12,7 @@ export interface Book {
   title: string;
   theme: string;
   coverEmoji: string;
+  coverImage?: string; // Orijinal yüklenen çizim
   pages: BookPage[];
 }
 

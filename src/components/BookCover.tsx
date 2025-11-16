@@ -6,17 +6,26 @@ interface BookCoverProps {
   onStart: () => void;
   title?: string;
   emoji?: string;
+  coverImage?: string;
 }
 
-const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲" }: BookCoverProps) => {
+const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", coverImage }: BookCoverProps) => {
   return (
     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
       <div className="absolute inset-0 animate-fade-in">
-        <img 
-          src={bookCoverImage} 
-          alt="Kitap Kapağı" 
-          className="w-full h-full object-cover"
-        />
+        {coverImage ? (
+          <img 
+            src={coverImage} 
+            alt="Kitap Kapağı - Çocuğun Çizimi" 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src={bookCoverImage} 
+            alt="Kitap Kapağı" 
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
       
       {/* Animasyonlu öğeler */}
