@@ -19,8 +19,10 @@ const themes = [
 ];
 
 const Home = () => {
-  const { books, loading, generateBook } = useBooks();
+  const { books, loading, generateBook, generateBookFromDrawing } = useBooks();
   const [customTheme, setCustomTheme] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   const handleGenerateBook = async (theme: string) => {
     const book = await generateBook(theme);
@@ -36,6 +38,28 @@ const Home = () => {
     }
     await handleGenerateBook(customTheme);
     setCustomTheme("");
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleGenerateFromDrawing = async () => {
+    if (!selectedImage) {
+      toast.error("Lütfen bir çizim yükleyin");
+      return;
+    }
+    const book = await generateBookFromDrawing(selectedImage);
+    if (book) {
+      setSelectedImage(null);
+      setPreviewUrl("");
+      toast.success("Çiziminden harika bir hikaye doğdu!");
+    }
   };
 
   return (
@@ -82,11 +106,79 @@ const Home = () => {
           </div>
         </div>
 
+        {/* Çizimden Hikaye Oluştur */}
+        <div className="bg-gradient-to-br from-accent/10 to-primary/10 rounded-3xl p-8 border border-border mb-8">
+          <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+            <span className="text-4xl">🎨</span>
+            Çiziminden Hikaye Oluştur
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            Çocuğunun çizdiği resmi yükle, yapay zeka o renkler ve temalarla benzersiz bir hikaye yaratsın!
+          </p>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="border-2 border-dashed border-border rounded-xl p-6 hover:border-primary transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  id="drawing-upload"
+                  disabled={loading}
+                />
+                <label
+                  htmlFor="drawing-upload"
+                  className="cursor-pointer flex flex-col items-center gap-3"
+                >
+                  <div className="text-6xl">📷</div>
+                  <div className="text-center">
+                    <p className="font-semibold">Çizim Yükle</p>
+                    <p className="text-sm text-muted-foreground">
+                      Fotoğraf çek veya galeriden seç
+                    </p>
+                  </div>
+                </label>
+              </div>
+              
+              {selectedImage && (
+                <Button
+                  onClick={handleGenerateFromDrawing}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-accent to-primary text-white py-6 text-lg"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Hikaye Oluşturuluyor...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Hikayeyi Oluştur
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            
+            {previewUrl && (
+              <div className="rounded-xl overflow-hidden border border-border bg-card">
+                <img
+                  src={previewUrl}
+                  alt="Yüklenen çizim"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Yeni Kitap Oluştur */}
         <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-3xl p-8 border border-border">
           <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-primary" />
-            Yeni Hikaye Oluştur
+            Temadan Hikaye Oluştur
           </h2>
 
           <div className="mb-8">
