@@ -10,7 +10,7 @@ interface BookSidebarProps {
 }
 
 const BookSidebar = ({ books, currentBookId }: BookSidebarProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [expandedBooks, setExpandedBooks] = useState<Set<string>>(new Set());
 
   const toggleBook = (bookId: string) => {
