@@ -101,7 +101,7 @@ JSON formatında dön:
           },
           {
             role: "user",
-            content: `Şu özelliklere sahip 4 sayfalık bir çocuk hikayesi yaz:
+            content: `Şu özelliklere sahip 10 sayfalık bir çocuk hikayesi yaz:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}

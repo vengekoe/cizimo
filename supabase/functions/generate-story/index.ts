@@ -27,11 +27,11 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Sen çocuklar için eğlenceli ve öğretici hikayeler yazan bir yazarsın. Her hikaye 4 sayfa olmalı ve her sayfada bir karakter ve onun hikayesi olmalı. Hikayeler ${theme} temalı olmalı.`,
+            content: `Sen çocuklar için eğlenceli ve öğretici hikayeler yazan bir yazarsın. Her hikaye 10 sayfa olmalı ve her sayfada bir karakter ve onun hikayesi olmalı. Hikayeler ${theme} temalı olmalı.`,
           },
           {
             role: "user",
-            content: `${theme} temalı, 4 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
+            content: `${theme} temalı, 10 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
             - Karakter adı ve emoji
             - Kısa bir başlık (maksimum 8 kelime)
             - Karakter için kısa bir açıklama (maksimum 15 kelime)
