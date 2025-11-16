@@ -3,9 +3,20 @@ import { Book, defaultBooks } from "@/data/books";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export interface GenerationProgress {
+  stage: 'story' | 'cover' | 'images' | 'saving' | 'complete' | null;
+  percentage: number;
+  message: string;
+}
+
 export const useBooks = () => {
   const [books, setBooks] = useState<Book[]>(defaultBooks);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<GenerationProgress>({ 
+    stage: null, 
+    percentage: 0, 
+    message: '' 
+  });
 
   useEffect(() => {
     loadBooks();
@@ -81,6 +92,7 @@ export const useBooks = () => {
 
   const generateBookFromDrawing = async (imageFile: File) => {
     setLoading(true);
+    setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
     try {
       const bookId = `book-${Date.now()}`;
       
@@ -95,10 +107,8 @@ export const useBooks = () => {
       const imageBase64 = await base64Promise;
       
       // Önce orijinal çizimi storage'a yükle
-      toast.loading("Çizim yükleniyor...");
+      setProgress({ stage: 'cover', percentage: 30, message: 'Çizim yükleniyor...' });
       const coverImageUrl = await uploadImageToStorage(imageBase64, bookId, -1); // -1 = cover image
-      
-      toast.loading("Çizim analiz ediliyor...");
 
       // Çizimden hikaye oluştur
       const { data: storyData, error: storyError } = await supabase.functions.invoke(
@@ -110,8 +120,7 @@ export const useBooks = () => {
 
       if (storyError) throw storyError;
 
-      toast.dismiss();
-      toast.loading("Hikaye görselleri oluşturuluyor...");
+      setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
 
       // Görselleri oluştur
       const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
@@ -121,14 +130,17 @@ export const useBooks = () => {
         },
       });
 
+      setProgress({ stage: 'saving', percentage: 70, message: 'Görseller kaydediliyor...' });
+
       // Görselleri storage'a yükle
-      toast.loading("Görseller kaydediliyor...");
       const uploadPromises = (imageData?.images || []).map((imageBase64: string, index: number) => {
         if (imageBase64) {
           return uploadImageToStorage(imageBase64, bookId, index);
         }
         return Promise.resolve(null);
       });
+
+      setProgress({ stage: 'complete', percentage: 90, message: 'Kitap hazırlanıyor...' });
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
@@ -149,21 +161,25 @@ export const useBooks = () => {
 
       const updatedBooks = [...books, newBook];
       saveBooks(updatedBooks);
-      toast.dismiss();
+      setProgress({ stage: 'complete', percentage: 100, message: 'Tamamlandı!' });
       toast.success(`"${storyData.title}" çiziminden oluşturuldu!`);
       return newBook;
     } catch (error) {
       console.error("Çizimden hikaye oluşturulamadı:", error);
-      toast.dismiss();
+      setProgress({ stage: null, percentage: 0, message: '' });
       toast.error("Hikaye oluşturulamadı. Lütfen tekrar deneyin.");
       return null;
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        setProgress({ stage: null, percentage: 0, message: '' });
+      }, 2000);
     }
   };
 
   const generateBook = async (theme: string) => {
     setLoading(true);
+    setProgress({ stage: 'story', percentage: 10, message: 'Hikaye oluşturuluyor...' });
     try {
       const bookId = `book-${Date.now()}`;
       
@@ -174,8 +190,9 @@ export const useBooks = () => {
 
       if (storyError) throw storyError;
 
+      setProgress({ stage: 'cover', percentage: 30, message: 'Kitap kapağı oluşturuluyor...' });
+      
       // Kitap kapağı için görsel oluştur
-      toast.loading("Kitap kapağı oluşturuluyor...");
       const { data: coverData } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: [{
@@ -195,8 +212,9 @@ export const useBooks = () => {
         coverImageUrl = await uploadImageToStorage(coverData.images[0], bookId, -1);
       }
 
+      setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
+      
       // Sayfa görselleri oluştur
-      toast.loading("Hikaye görselleri oluşturuluyor...");
       const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: storyData.pages,
@@ -204,14 +222,17 @@ export const useBooks = () => {
         },
       });
 
+      setProgress({ stage: 'saving', percentage: 70, message: 'Görseller kaydediliyor...' });
+      
       // Görselleri storage'a yükle
-      toast.loading("Görseller kaydediliyor...");
       const uploadPromises = (imageData?.images || []).map((imageBase64: string, index: number) => {
         if (imageBase64) {
           return uploadImageToStorage(imageBase64, bookId, index);
         }
         return Promise.resolve(null);
       });
+
+      setProgress({ stage: 'complete', percentage: 90, message: 'Kitap hazırlanıyor...' });
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
@@ -231,16 +252,19 @@ export const useBooks = () => {
 
       const updatedBooks = [...books, newBook];
       saveBooks(updatedBooks);
-      toast.dismiss();
+      setProgress({ stage: 'complete', percentage: 100, message: 'Tamamlandı!' });
       toast.success(`"${storyData.title}" başarıyla oluşturuldu!`);
       return newBook;
     } catch (error) {
       console.error("Hikaye oluşturulamadı:", error);
-      toast.dismiss();
+      setProgress({ stage: null, percentage: 0, message: '' });
       toast.error("Hikaye oluşturulamadı. Lütfen tekrar deneyin.");
       return null;
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        setProgress({ stage: null, percentage: 0, message: '' });
+      }, 2000);
     }
   };
 
@@ -278,5 +302,5 @@ export const useBooks = () => {
     }
   };
 
-  return { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite, updateLastRead };
+  return { books, loading, progress, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite, updateLastRead };
 };
