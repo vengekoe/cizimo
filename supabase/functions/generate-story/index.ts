@@ -28,32 +28,29 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Sen çocuklar için eğlenceli ve öğretici hikayeler yazan bir yazarsın. Her hikaye 10 sayfa olmalı ve her sayfada bir karakter ve onun hikayesi olmalı. Hikayeler ${theme} temalı olmalı. Yanıtını sadece JSON formatında ver, başka açıklama ekleme.`,
+            content: `Sen çocuklar için eğlenceli ve öğretici hikayeler yazan bir yazarsın. Her hikaye 10 sayfa olmalı ve her sayfada bir karakter ve onun hikayesi olmalı. Yanıtını SADECE JSON formatında ver, başka hiçbir açıklama veya metin ekleme.`,
           },
           {
             role: "user",
-            content: `${theme} temalı, 10 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
-            - Karakter adı ve emoji
-            - Kısa bir başlık (maksimum 8 kelime)
-            - Karakter için kısa bir açıklama (maksimum 15 kelime)
-            - Karakterin ses efekti
+            content: `${theme} temalı, 10 sayfalık bir çocuk hikayesi yaz. Her sayfa için karakter adı, emoji, başlık, açıklama ve ses efekti ekle.
             
-            JSON formatında dön:
-            {
-              "title": "Kitap Başlığı",
-              "pages": [
-                {
-                  "character": "Karakter Adı",
-                  "emoji": "🐻",
-                  "title": "Sayfa Başlığı",
-                  "description": "Kısa açıklama",
-                  "sound": "Ses efekti"
-                }
-              ]
-            }`,
+Yanıtını şu JSON formatında ver:
+{
+  "title": "Kitap Başlığı",
+  "pages": [
+    {
+      "character": "Karakter Adı",
+      "emoji": "🐻",
+      "title": "Sayfa Başlığı (max 8 kelime)",
+      "description": "Kısa açıklama (max 15 kelime)",
+      "sound": "Ses efekti"
+    }
+  ]
+}`,
           },
         ],
-        max_completion_tokens: 2000,
+        response_format: { type: "json_object" },
+        max_completion_tokens: 2500,
       }),
     });
 
@@ -77,17 +74,34 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    console.log("OpenAI response data:", JSON.stringify(data).substring(0, 200));
     
-    // JSON'u parse et
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("Invalid JSON in response:", content);
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      console.error("No content in response:", JSON.stringify(data));
+      throw new Error("OpenAI'dan içerik alınamadı");
+    }
+    
+    console.log("Content from OpenAI:", content.substring(0, 200));
+    
+    // JSON mode kullandığımız için direkt parse edebiliriz
+    let story;
+    try {
+      story = JSON.parse(content);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      console.error("Content that failed to parse:", content);
       throw new Error("Geçersiz JSON formatı");
     }
     
-    const story = JSON.parse(jsonMatch[0]);
+    // Validate the structure
+    if (!story.title || !Array.isArray(story.pages)) {
+      console.error("Invalid story structure:", story);
+      throw new Error("Hikaye yapısı geçersiz");
+    }
 
+    console.log("Successfully generated story:", story.title);
     return new Response(JSON.stringify(story), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
