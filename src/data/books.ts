@@ -15,6 +15,7 @@ export interface Book {
   coverImage?: string; // Orijinal yüklenen çizim
   isFromDrawing?: boolean; // Çizimden oluşturulmuş mu?
   isFavorite?: boolean; // Favori mi?
+  lastReadAt?: string; // Son okunma tarihi
   pages: BookPage[];
 }
 

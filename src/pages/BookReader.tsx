@@ -10,13 +10,20 @@ import { useBooks } from "@/hooks/useBooks";
 const BookReader = () => {
   const { bookId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { books } = useBooks();
+  const { books, updateLastRead } = useBooks();
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
   const [showFeedback, setShowFeedback] = useState(false);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
+
+  // Kitap açıldığında son okunma tarihini güncelle
+  useEffect(() => {
+    if (bookId && updateLastRead) {
+      updateLastRead(bookId);
+    }
+  }, [bookId, updateLastRead]);
 
   useEffect(() => {
     const pageParam = searchParams.get("page");
