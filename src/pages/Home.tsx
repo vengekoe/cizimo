@@ -118,28 +118,33 @@ const Home = () => {
           
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-border rounded-xl p-6 hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  id="drawing-upload"
-                  disabled={loading}
-                />
-                <label
-                  htmlFor="drawing-upload"
-                  className="cursor-pointer flex flex-col items-center gap-3"
-                >
-                  <div className="text-6xl">📷</div>
-                  <div className="text-center">
-                    <p className="font-semibold">Çizim Yükle</p>
-                    <p className="text-sm text-muted-foreground">
-                      Fotoğraf çek veya galeriden seç
-                    </p>
+              <label
+                htmlFor="drawing-upload"
+                className="block cursor-pointer"
+              >
+                <div className="border-2 border-dashed border-primary/50 rounded-xl p-8 hover:border-primary hover:bg-primary/5 transition-all">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    id="drawing-upload"
+                    disabled={loading}
+                  />
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="text-7xl">📷</div>
+                    <div className="text-center">
+                      <p className="font-semibold text-lg mb-2">
+                        {selectedImage ? "✅ Çizim Yüklendi!" : "Çizim Yükle"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Fotoğraf çek veya galeriden seç
+                      </p>
+                    </div>
                   </div>
-                </label>
-              </div>
+                </div>
+              </label>
               
               {selectedImage && (
                 <Button
@@ -163,12 +168,17 @@ const Home = () => {
             </div>
             
             {previewUrl && (
-              <div className="rounded-xl overflow-hidden border border-border bg-card">
-                <img
-                  src={previewUrl}
-                  alt="Yüklenen çizim"
-                  className="w-full h-full object-contain"
-                />
+              <div className="rounded-xl overflow-hidden border-2 border-primary/30 bg-card shadow-lg">
+                <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-3 border-b border-border">
+                  <p className="text-sm font-semibold text-center">Yüklenen Çizim</p>
+                </div>
+                <div className="p-4">
+                  <img
+                    src={previewUrl}
+                    alt="Yüklenen çizim"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
               </div>
             )}
           </div>
