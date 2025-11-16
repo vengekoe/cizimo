@@ -23,7 +23,8 @@ const BookReader = () => {
     if (bookId && updateLastRead) {
       updateLastRead(bookId);
     }
-  }, [bookId, updateLastRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId]);
 
   useEffect(() => {
     const pageParam = searchParams.get("page");
