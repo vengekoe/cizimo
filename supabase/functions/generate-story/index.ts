@@ -24,7 +24,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-mini-2025-08-07",
+        model: "gpt-5-2025-08-07",
         messages: [
           {
             role: "system",
@@ -50,7 +50,7 @@ Yanıtını şu JSON formatında ver:
           },
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 2500,
+        max_completion_tokens: 1500,
       }),
     });
 
