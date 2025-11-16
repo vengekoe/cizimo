@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, Paintbrush, Trash2, Star } from "lucide-react";
+import { Loader2, Sparkles, Paintbrush, Trash2, Star, Clock } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 import {
@@ -16,6 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { formatDistanceToNow } from "date-fns";
+import { tr } from "date-fns/locale";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
@@ -35,12 +37,21 @@ const Home = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
 
-  // Kitapları favorilere göre sırala (favoriler üstte)
+  // Kitapları sıralama tipine göre sırala
   const sortedBooks = [...books].sort((a, b) => {
-    if (a.isFavorite && !b.isFavorite) return -1;
-    if (!a.isFavorite && b.isFavorite) return 1;
-    return 0;
+    if (sortBy === "favorites") {
+      // Favoriler üstte
+      if (a.isFavorite && !b.isFavorite) return -1;
+      if (!a.isFavorite && b.isFavorite) return 1;
+      return 0;
+    } else {
+      // En son okunanlar üstte
+      const aDate = a.lastReadAt ? new Date(a.lastReadAt).getTime() : 0;
+      const bDate = b.lastReadAt ? new Date(b.lastReadAt).getTime() : 0;
+      return bDate - aDate;
+    }
   });
 
   // Gökkuşağı Ormanı'nın Kayıp Rengi kitabını çizimden işaretle
@@ -128,10 +139,30 @@ const Home = () => {
 
         {/* Mevcut Kitaplar */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
-            <span>📖</span>
-            Kitaplarım ({books.length})
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold flex items-center gap-2">
+              <span>📖</span>
+              Kitaplarım ({books.length})
+            </h2>
+            <div className="flex gap-2">
+              <Button
+                variant={sortBy === "favorites" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("favorites")}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Favoriler
+              </Button>
+              <Button
+                variant={sortBy === "recent" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("recent")}
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                En Son Okunanlar
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedBooks.map((book) => (
               <div key={book.id} className="relative group">
@@ -153,10 +184,16 @@ const Home = () => {
                       {book.title}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">{book.theme}</p>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm flex-wrap">
                       <span className="bg-primary/10 text-primary px-3 py-1 rounded-full">
                         {book.pages.length} sayfa
                       </span>
+                      {book.lastReadAt && (
+                        <span className="bg-muted text-muted-foreground px-3 py-1 rounded-full flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDistanceToNow(new Date(book.lastReadAt), { addSuffix: true, locale: tr })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </Link>

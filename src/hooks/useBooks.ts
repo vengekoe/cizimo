@@ -267,5 +267,16 @@ export const useBooks = () => {
     }
   };
 
-  return { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite };
+  const updateLastRead = (bookId: string) => {
+    try {
+      const updatedBooks = books.map(book =>
+        book.id === bookId ? { ...book, lastReadAt: new Date().toISOString() } : book
+      );
+      saveBooks(updatedBooks);
+    } catch (error) {
+      console.error("Son okunma tarihi güncellenemedi:", error);
+    }
+  };
+
+  return { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite, updateLastRead };
 };
