@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
 import InteractiveElement from "@/components/InteractiveElement";
 import PageNavigation from "@/components/PageNavigation";
+import AudioPlayer from "@/components/AudioPlayer";
+import { useReadingProgress } from "@/hooks/useReadingProgress";
 import bearPageImage from "@/assets/bear-page.jpg";
 import rabbitPageImage from "@/assets/rabbit-page.jpg";
 import owlPageImage from "@/assets/owl-page.jpg";
@@ -11,8 +13,16 @@ import celebrationPageImage from "@/assets/celebration-page.jpg";
 const Index = () => {
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
+  const { progress, saveProgress, isLoggedIn } = useReadingProgress();
 
   const totalPages = 5;
+
+  // İlerleme yüklendiğinde son sayfaya git
+  useEffect(() => {
+    if (progress.current_page > 0 && currentPage === -1) {
+      setCurrentPage(progress.current_page);
+    }
+  }, [progress.current_page]);
 
   const handleStart = () => {
     setPageDirection("forward");
@@ -22,14 +32,18 @@ const Index = () => {
   const handleNext = () => {
     if (currentPage < totalPages - 1) {
       setPageDirection("forward");
-      setCurrentPage(currentPage + 1);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      saveProgress(nextPage, nextPage === totalPages - 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentPage > 0) {
       setPageDirection("backward");
-      setCurrentPage(currentPage - 1);
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      saveProgress(prevPage, false);
     }
   };
 
@@ -52,6 +66,10 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Ormanda yaşıyorum ve yeni arkadaşlar arıyorum!
         </p>
+        <AudioPlayer 
+          text="Merhaba! Ben Ayı! Ormanda yaşıyorum ve yeni arkadaşlar arıyorum!" 
+          label="Dinle 🔊"
+        />
       </div>
       <InteractiveElement emoji="🐻" sound="Hav hav!" label="Tıkla benimle konuş!" />
     </BookPage>,
@@ -65,6 +83,10 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Çayırlarda hoplayıp zıplamayı çok severim!
         </p>
+        <AudioPlayer 
+          text="Merhaba! Ben Tavşan! Çayırlarda hoplayıp zıplamayı çok severim!" 
+          label="Dinle 🔊"
+        />
       </div>
       <InteractiveElement emoji="🐰" sound="Hop hop!" label="Benimle zıpla!" />
     </BookPage>,
@@ -78,6 +100,10 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-card bg-primary/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Geceleri yıldızları izlemeyi seviyorum!
         </p>
+        <AudioPlayer 
+          text="Merhaba! Ben Baykuş! Geceleri yıldızları izlemeyi seviyorum!" 
+          label="Dinle 🔊"
+        />
       </div>
       <InteractiveElement emoji="🦉" sound="Huu huu!" label="Benimle şarkı söyle!" />
     </BookPage>,
@@ -91,6 +117,10 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Birlikte eğlenmeye ne dersin?
         </p>
+        <AudioPlayer 
+          text="Hepimiz Arkadaşız! Birlikte eğlenmeye ne dersin?" 
+          label="Dinle 🔊"
+        />
       </div>
       <InteractiveElement emoji="🎈" sound="Yaşasın!" label="Kutlama zamanı!" />
     </BookPage>,
