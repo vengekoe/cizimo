@@ -133,7 +133,7 @@ const Home = () => {
                   className="block relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary transition-all duration-300 hover:scale-105 hover:shadow-2xl"
                 >
                   {book.isFromDrawing && (
-                    <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-lg">
+                    <div className="absolute top-14 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-lg">
                       <Paintbrush className="w-3.5 h-3.5" />
                       Çizimden
                     </div>
@@ -154,9 +154,9 @@ const Home = () => {
                   </div>
                 </Link>
                 <Button
-                  variant="destructive"
+                  variant="ghost"
                   size="icon"
-                  className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground backdrop-blur-sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
