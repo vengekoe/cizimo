@@ -174,4 +174,92 @@ All colors MUST be HSL.
     25% { transform: rotate(-10deg); }
     75% { transform: rotate(10deg); }
   }
+  
+  /* Animasyonlu öğeler için keyframes */
+  @keyframes bird-fly {
+    0%, 100% { 
+      transform: translateX(0) translateY(0);
+    }
+    50% { 
+      transform: translateX(300px) translateY(-50px);
+    }
+  }
+  
+  @keyframes butterfly-float {
+    0%, 100% { 
+      transform: translate(0, 0) rotate(0deg);
+    }
+    25% { 
+      transform: translate(30px, -30px) rotate(5deg);
+    }
+    50% { 
+      transform: translate(60px, 0px) rotate(-5deg);
+    }
+    75% { 
+      transform: translate(30px, 30px) rotate(5deg);
+    }
+  }
+  
+  @keyframes twinkle {
+    0%, 100% { 
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    50% { 
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+  
+  @keyframes gentle-float {
+    0%, 100% { 
+      transform: translateY(0px);
+    }
+    50% { 
+      transform: translateY(-20px);
+    }
+  }
+  
+  @keyframes firefly {
+    0%, 100% { 
+      opacity: 0.2;
+      transform: translate(0, 0) scale(0.5);
+    }
+    25% {
+      opacity: 1;
+      transform: translate(20px, -20px) scale(1);
+    }
+    50% { 
+      opacity: 0.3;
+      transform: translate(40px, 10px) scale(0.7);
+    }
+    75% {
+      opacity: 1;
+      transform: translate(20px, 30px) scale(1);
+    }
+  }
+  
+  @keyframes balloon-float {
+    0% { 
+      transform: translateY(0px) translateX(0px);
+    }
+    50% { 
+      transform: translateY(-100px) translateX(20px);
+    }
+    100% { 
+      transform: translateY(-200px) translateX(0px);
+      opacity: 0;
+    }
+  }
+  
+  @keyframes confetti-fall {
+    0% { 
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% { 
+      transform: translateY(120vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
 }

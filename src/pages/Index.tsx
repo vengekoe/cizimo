@@ -58,7 +58,7 @@ const Index = () => {
 
   const pages = [
     // Sayfa 1: Ayı
-    <BookPage key={0} backgroundImage={bearPageImage} pageNumber={1}>
+    <BookPage key={0} backgroundImage={bearPageImage} pageNumber={1} animationType="butterfly">
       <div className="text-center space-y-8 animate-fade-in">
         <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
           Merhaba! Ben Ayı! 🐻
@@ -75,7 +75,7 @@ const Index = () => {
     </BookPage>,
 
     // Sayfa 2: Tavşan
-    <BookPage key={1} backgroundImage={rabbitPageImage} pageNumber={2}>
+    <BookPage key={1} backgroundImage={rabbitPageImage} pageNumber={2} animationType="butterfly">
       <div className="text-center space-y-8 animate-fade-in">
         <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
           Merhaba! Ben Tavşan! 🐰
@@ -92,7 +92,7 @@ const Index = () => {
     </BookPage>,
 
     // Sayfa 3: Baykuş
-    <BookPage key={2} backgroundImage={owlPageImage} pageNumber={3}>
+    <BookPage key={2} backgroundImage={owlPageImage} pageNumber={3} animationType="stars">
       <div className="text-center space-y-8 animate-fade-in">
         <h2 className="text-4xl md:text-6xl font-bold text-card bg-primary/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
           Merhaba! Ben Baykuş! 🦉
@@ -109,7 +109,7 @@ const Index = () => {
     </BookPage>,
 
     // Sayfa 4: Hepsi birlikte
-    <BookPage key={3} backgroundImage={celebrationPageImage} pageNumber={4}>
+    <BookPage key={3} backgroundImage={celebrationPageImage} pageNumber={4} animationType="celebration">
       <div className="text-center space-y-8 animate-fade-in">
         <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
           Hepimiz Arkadaşız! 🎉
@@ -126,7 +126,7 @@ const Index = () => {
     </BookPage>,
 
     // Sayfa 5: Son
-    <BookPage key={4} backgroundImage={celebrationPageImage} pageNumber={5}>
+    <BookPage key={4} backgroundImage={celebrationPageImage} pageNumber={5} animationType="celebration">
       <div className="text-center space-y-8 animate-fade-in">
         <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
           Hikayemiz Bitti! 📖
