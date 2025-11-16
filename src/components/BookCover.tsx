@@ -58,18 +58,6 @@ const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", cov
       <div className="absolute inset-0 pointer-events-none">
         <AnimatedElements type="sun" />
       </div>
-
-      {/* Ana sayfa butonu - sol üst köşe */}
-      <Link to="/" className="absolute top-6 left-6 z-20">
-        <Button
-          size="lg"
-          variant="outline"
-          className="text-xl px-6 py-6 bg-card/80 backdrop-blur-sm hover:bg-card shadow-2xl"
-        >
-          <Home className="w-6 h-6 mr-2" />
-          <span className="hidden md:inline">Kitaplık</span>
-        </Button>
-      </Link>
       
       <div className="relative z-10 flex flex-col items-center gap-8 p-8 animate-scale-in">
         <div className="text-8xl mb-4 animate-bounce-gentle">{emoji}</div>
@@ -89,6 +77,17 @@ const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", cov
         >
           Kitabı Aç 📖
         </Button>
+
+        <Link to="/">
+          <Button
+            size="lg"
+            variant="outline"
+            className={`text-xl md:text-2xl px-10 py-6 bg-gradient-to-r ${theme.button} text-white border-2 border-white/30 backdrop-blur-sm hover:scale-105 transition-all duration-300 shadow-xl`}
+          >
+            <Home className="w-6 h-6 mr-2" />
+            Kitaplık
+          </Button>
+        </Link>
       </div>
     </div>
   );
