@@ -255,5 +255,17 @@ export const useBooks = () => {
     }
   };
 
-  return { books, loading, generateBook, generateBookFromDrawing, deleteBook };
+  const toggleFavorite = (bookId: string) => {
+    try {
+      const updatedBooks = books.map(book =>
+        book.id === bookId ? { ...book, isFavorite: !book.isFavorite } : book
+      );
+      saveBooks(updatedBooks);
+    } catch (error) {
+      console.error("Favori güncellenemedi:", error);
+      toast.error("Favori güncellenemedi");
+    }
+  };
+
+  return { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite };
 };

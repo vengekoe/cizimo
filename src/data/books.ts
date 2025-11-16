@@ -14,6 +14,7 @@ export interface Book {
   coverEmoji: string;
   coverImage?: string; // Orijinal yüklenen çizim
   isFromDrawing?: boolean; // Çizimden oluşturulmuş mu?
+  isFavorite?: boolean; // Favori mi?
   pages: BookPage[];
 }
 
