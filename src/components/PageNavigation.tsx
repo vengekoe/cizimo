@@ -11,7 +11,7 @@ interface PageNavigationProps {
 
 const PageNavigation = ({ currentPage, totalPages, onNext, onPrevious, onHome }: PageNavigationProps) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background/95 to-transparent backdrop-blur-sm p-4 md:p-6">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-background/95 to-transparent backdrop-blur-sm p-4 md:p-6 pointer-events-auto">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
         <Button
           onClick={onPrevious}

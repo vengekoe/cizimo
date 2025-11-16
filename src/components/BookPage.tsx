@@ -16,7 +16,7 @@ const BookPage = ({ children, backgroundImage, pageNumber, animationType }: Book
         style={{ backgroundImage: `url(${backgroundImage})` }}
       />
       
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-book-page/10 to-book-page/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-book-page/10 to-book-page/30 pointer-events-none z-0" />
       
       {/* Animasyonlu öğeler */}
       {animationType && (

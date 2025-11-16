@@ -148,7 +148,7 @@ const Index = () => {
     <div className="relative w-full h-screen overflow-hidden">
       <div
         key={currentPage}
-        className={pageDirection === "forward" ? "page-turn-enter" : "page-turn-exit"}
+        className={(pageDirection === "forward" ? "page-turn-enter" : "page-turn-exit") + " relative z-0"}
       >
         {pages[currentPage]}
       </div>
