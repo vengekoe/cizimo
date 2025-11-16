@@ -55,16 +55,15 @@ const PageNavigation = ({ currentPage, totalPages, onNext, onPrevious, onHome, o
         </div>
         
         {isLastPage ? (
-          <Link to="/">
-            <Button
-              size="lg"
-              variant="default"
-              className="text-xl md:text-2xl px-8 py-6 bg-gradient-to-r from-primary to-accent hover:scale-105 transition-all"
-            >
-              <Check className="w-6 h-6 mr-2" />
-              Bitir
-            </Button>
-          </Link>
+          <Button
+            onClick={onFinish}
+            size="lg"
+            variant="default"
+            className="text-xl md:text-2xl px-8 py-6 bg-gradient-to-r from-primary to-accent hover:scale-105 transition-all"
+          >
+            <Check className="w-6 h-6 mr-2" />
+            Bitir
+          </Button>
         ) : (
           <Button
             onClick={onNext}

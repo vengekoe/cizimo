@@ -4,6 +4,7 @@ import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
 import InteractiveElement from "@/components/InteractiveElement";
 import PageNavigation from "@/components/PageNavigation";
+import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
 import bearPageImage from "@/assets/bear-page.jpg";
 import rabbitPageImage from "@/assets/rabbit-page.jpg";
@@ -19,6 +20,7 @@ const BookReader = () => {
   const { books } = useBooks();
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
@@ -76,6 +78,10 @@ const BookReader = () => {
     setSearchParams({});
   };
 
+  const handleFinish = () => {
+    setShowFeedback(true);
+  };
+
   if (currentPage === -1) {
     return <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} coverImage={book.coverImage} />;
   }
@@ -120,6 +126,14 @@ const BookReader = () => {
         onNext={handleNext}
         onPrevious={handlePrevious}
         onHome={handleHome}
+        onFinish={handleFinish}
+      />
+
+      <BookFeedback
+        open={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        bookTitle={book.title}
+        bookId={book.id}
       />
     </div>
   );
