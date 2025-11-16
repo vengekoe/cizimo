@@ -27,11 +27,11 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `${theme} temalı, 10 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
+              text: `${theme} temalı, 5 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
 - Karakter adı ve emoji
-- Kısa bir başlık (maksimum 8 kelime)
-- Karakter için kısa bir açıklama (maksimum 15 kelime)
-- Karakterin ses efekti
+- Kısa bir başlık (maksimum 6 kelime)
+- Karakter için kısa bir açıklama (maksimum 12 kelime)
+- Karakterin ses efekti (maksimum 3 kelime)
 
 Yanıtını SADECE JSON formatında ver:
 {
@@ -49,10 +49,10 @@ Yanıtını SADECE JSON formatında ver:
             }]
           }],
           generationConfig: {
-            temperature: 1,
-            topK: 40,
+            temperature: 0.9,
+            topK: 32,
             topP: 0.95,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
             responseMimeType: "application/json"
           }
         }),
