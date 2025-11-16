@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 
@@ -93,6 +93,12 @@ const Home = () => {
                 to={`/book/${book.id}`}
                 className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary transition-all duration-300 hover:scale-105 hover:shadow-2xl"
               >
+                {book.coverImage && (
+                  <div className="absolute top-3 right-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-lg">
+                    <Paintbrush className="w-3.5 h-3.5" />
+                    Çizimden
+                  </div>
+                )}
                 <div className="p-8">
                   <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
                     {book.coverEmoji}
