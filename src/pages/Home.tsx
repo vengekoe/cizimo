@@ -126,7 +126,6 @@ const Home = () => {
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={handleImageChange}
                     className="hidden"
                     id="drawing-upload"
