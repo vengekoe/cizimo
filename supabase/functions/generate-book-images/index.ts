@@ -13,9 +13,9 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
@@ -25,22 +25,20 @@ serve(async (req) => {
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
 
       const response = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        "https://api.openai.com/v1/images/generations",
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image-preview",
-            messages: [
-              {
-                role: "user",
-                content: prompt
-              }
-            ],
-            modalities: ["image", "text"]
+            model: "gpt-image-1",
+            prompt: prompt,
+            n: 1,
+            size: "1536x1024",
+            quality: "high",
+            output_format: "png"
           }),
         }
       );
@@ -50,10 +48,10 @@ serve(async (req) => {
         console.error(`Image ${index + 1} generation failed:`, response.status, errorText);
         
         if (response.status === 429) {
-          throw new Error("Rate limit aşıldı");
+          throw new Error("OpenAI rate limit aşıldı");
         }
         if (response.status === 402) {
-          throw new Error("Lovable AI kredisi yetersiz");
+          throw new Error("OpenAI kredisi yetersiz");
         }
         if (response.status === 401 || response.status === 403) {
           throw new Error("API anahtarı geçersiz");
@@ -62,15 +60,16 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const imageUrl = data.data?.[0]?.b64_json;
       
       if (!imageUrl) {
         console.error(`No image data for index ${index}`);
         return null;
       }
 
+      const base64Image = `data:image/png;base64,${imageUrl}`;
       console.log(`Image ${index + 1} generated successfully`);
-      return imageUrl;
+      return base64Image;
     });
 
     const images = await Promise.all(imagePromises);
