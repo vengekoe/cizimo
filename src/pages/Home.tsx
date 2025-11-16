@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
@@ -63,8 +64,13 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen relative">
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-30"
+        style={{ backgroundImage: `url(${rainbowForestCover})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/70 to-background/80" />
+      <div className="relative z-10 container mx-auto px-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Hikaye Kitaplığım 📚
