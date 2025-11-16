@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ const themes = [
 
 const Home = () => {
   const { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite } = useBooks();
+  const navigate = useNavigate();
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -79,6 +80,10 @@ const Home = () => {
     const book = await generateBook(theme);
     if (book) {
       toast.success("Yeni kitap hazır! Şimdi okuyabilirsiniz.");
+      // Kitabı otomatik olarak aç
+      setTimeout(() => {
+        navigate(`/book/${book.id}`);
+      }, 1000);
     }
   };
 
@@ -110,6 +115,10 @@ const Home = () => {
       setSelectedImage(null);
       setPreviewUrl("");
       toast.success("Çiziminden harika bir hikaye doğdu!");
+      // Kitabı otomatik olarak aç
+      setTimeout(() => {
+        navigate(`/book/${book.id}`);
+      }, 1000);
     }
   };
 
