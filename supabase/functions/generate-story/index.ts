@@ -13,20 +13,20 @@ serve(async (req) => {
 
   try {
     const { theme } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const response = await fetch(
-      "https://api.openai.com/v1/chat/completions",
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
+          model: "google/gemini-2.5-flash",
           messages: [
             {
               role: "system",
@@ -55,42 +55,41 @@ Yanıtını SADECE JSON formatında ver:
 }`
             }
           ],
-          response_format: { type: "json_object" },
-          max_completion_tokens: 8000
+          response_format: { type: "json_object" }
         }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
+      console.error("Lovable AI error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "OpenAI rate limit aşıldı, lütfen daha sonra tekrar deneyin." }),
+          JSON.stringify({ error: "Rate limit aşıldı, lütfen daha sonra tekrar deneyin." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "OpenAI API anahtarı geçersiz." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Lovable AI kredileriniz tükendi. Settings → Workspace → Usage bölümünden kredi ekleyin." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`Lovable AI error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("OpenAI response data:", JSON.stringify(data).substring(0, 200));
+    console.log("Lovable AI response data:", JSON.stringify(data).substring(0, 200));
     
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
       console.error("No content in response:", JSON.stringify(data));
-      throw new Error("OpenAI'dan içerik alınamadı");
+      throw new Error("Lovable AI'dan içerik alınamadı");
     }
     
-    console.log("Content from OpenAI:", content.substring(0, 200));
+    console.log("Content from Lovable AI:", content.substring(0, 200));
     
     let story;
     try {

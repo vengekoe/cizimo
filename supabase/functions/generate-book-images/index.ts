@@ -13,32 +13,34 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
     const imagePromises = pages.map(async (page: any, index: number) => {
-      const prompt = `Children's book illustration for: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Colorful, friendly, safe for children, high quality digital art, vibrant colors, 16:9 aspect ratio`;
+      const prompt = `Children's book illustration: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Colorful, friendly, safe for children, high quality digital art, vibrant colors.`;
       
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
 
       const response = await fetch(
-        "https://api.openai.com/v1/images/generations",
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "dall-e-3",
-            prompt: prompt,
-            n: 1,
-            size: "1792x1024",
-            quality: "hd",
-            style: "vivid"
+            model: "google/gemini-2.5-flash-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ],
+            modalities: ["image", "text"]
           }),
         }
       );
@@ -48,27 +50,24 @@ serve(async (req) => {
         console.error(`Image ${index + 1} generation failed:`, response.status, errorText);
         
         if (response.status === 429) {
-          throw new Error("OpenAI rate limit aşıldı");
+          throw new Error("Rate limit aşıldı");
         }
         if (response.status === 402) {
-          throw new Error("OpenAI kredisi yetersiz");
-        }
-        if (response.status === 401 || response.status === 403) {
-          throw new Error("API anahtarı geçersiz");
+          throw new Error("Lovable AI kredisi yetersiz");
         }
         return null;
       }
 
       const data = await response.json();
-      const imageUrl = data.data?.[0]?.url;
+      const imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
       
-      if (!imageUrl) {
+      if (!imageBase64) {
         console.error(`No image data for index ${index}`);
         return null;
       }
 
       console.log(`Image ${index + 1} generated successfully`);
-      return imageUrl;
+      return imageBase64;
     });
 
     const images = await Promise.all(imagePromises);
