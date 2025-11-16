@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-story]
 verify_jwt = false
+
+[functions.generate-book-images]
+verify_jwt = false

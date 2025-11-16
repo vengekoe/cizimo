@@ -35,26 +35,44 @@ export const useBooks = () => {
   const generateBook = async (theme: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-story", {
+      // Önce hikayeyi oluştur
+      const { data: storyData, error: storyError } = await supabase.functions.invoke("generate-story", {
         body: { theme },
       });
 
-      if (error) throw error;
+      if (storyError) throw storyError;
+
+      // Sonra görselleri oluştur
+      toast.loading("Hikaye görselleri oluşturuluyor...");
+      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
+        body: { 
+          pages: storyData.pages,
+          theme 
+        },
+      });
+
+      // Görseller başarısız olsa bile hikayeyi kaydet
+      const pages = storyData.pages.map((page: any, index: number) => ({
+        ...page,
+        backgroundImage: imageData?.images?.[index] || undefined,
+      }));
 
       const newBook: Book = {
         id: `book-${Date.now()}`,
-        title: data.title,
+        title: storyData.title,
         theme,
-        coverEmoji: data.pages[0]?.emoji || "📖",
-        pages: data.pages,
+        coverEmoji: storyData.pages[0]?.emoji || "📖",
+        pages,
       };
 
       const updatedBooks = [...books, newBook];
       saveBooks(updatedBooks);
-      toast.success(`"${data.title}" başarıyla oluşturuldu!`);
+      toast.dismiss();
+      toast.success(`"${storyData.title}" başarıyla oluşturuldu!`);
       return newBook;
     } catch (error) {
       console.error("Hikaye oluşturulamadı:", error);
+      toast.dismiss();
       toast.error("Hikaye oluşturulamadı. Lütfen tekrar deneyin.");
       return null;
     } finally {
