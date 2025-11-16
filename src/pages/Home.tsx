@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Sparkles, Paintbrush, Trash2, Star, Clock } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
+import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +33,7 @@ const themes = [
 ];
 
 const Home = () => {
-  const { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite } = useBooks();
+  const { books, loading, progress, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite } = useBooks();
   const navigate = useNavigate();
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -131,6 +132,8 @@ const Home = () => {
 
   return (
     <div className="min-h-screen relative">
+      <BookGenerationProgress progress={progress} />
+      
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30"
         style={{ backgroundImage: `url(${rainbowForestCover})` }}
