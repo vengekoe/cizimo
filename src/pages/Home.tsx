@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,27 @@ const Home = () => {
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  // Gökkuşağı Ormanı'nın Kayıp Rengi kitabını çizimden işaretle
+  useEffect(() => {
+    const storedBooks = localStorage.getItem("childrenBooks");
+    if (storedBooks) {
+      const parsedBooks = JSON.parse(storedBooks);
+      const rainbowBook = parsedBooks.find((book: any) => 
+        book.title === "Gökkuşağı Ormanı'nın Kayıp Rengi"
+      );
+      
+      if (rainbowBook && !rainbowBook.isFromDrawing) {
+        const updatedBooks = parsedBooks.map((book: any) => 
+          book.title === "Gökkuşağı Ormanı'nın Kayıp Rengi" 
+            ? { ...book, isFromDrawing: true }
+            : book
+        );
+        localStorage.setItem("childrenBooks", JSON.stringify(updatedBooks));
+        window.location.reload();
+      }
+    }
+  }, []);
 
   const handleGenerateBook = async (theme: string) => {
     const book = await generateBook(theme);
