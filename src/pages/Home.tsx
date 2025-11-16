@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, Paintbrush, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Paintbrush, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 import {
@@ -30,11 +30,18 @@ const themes = [
 ];
 
 const Home = () => {
-  const { books, loading, generateBook, generateBookFromDrawing, deleteBook } = useBooks();
+  const { books, loading, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite } = useBooks();
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
+
+  // Kitapları favorilere göre sırala (favoriler üstte)
+  const sortedBooks = [...books].sort((a, b) => {
+    if (a.isFavorite && !b.isFavorite) return -1;
+    if (!a.isFavorite && b.isFavorite) return 1;
+    return 0;
+  });
 
   // Gökkuşağı Ormanı'nın Kayıp Rengi kitabını çizimden işaretle
   useEffect(() => {
@@ -126,7 +133,7 @@ const Home = () => {
             Kitaplarım ({books.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {books.map((book) => (
+            {sortedBooks.map((book) => (
               <div key={book.id} className="relative group">
                 <Link
                   to={`/book/${book.id}`}
@@ -153,18 +160,36 @@ const Home = () => {
                     </div>
                   </div>
                 </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground backdrop-blur-sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setBookToDelete(book.id);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="absolute top-3 right-3 z-10 flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity shadow-lg backdrop-blur-sm ${
+                      book.isFavorite 
+                        ? "bg-yellow-500/80 hover:bg-yellow-500 text-white" 
+                        : "bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleFavorite && toggleFavorite(book.id);
+                    }}
+                  >
+                    <Star className={`w-4 h-4 ${book.isFavorite ? "fill-current" : ""}`} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity shadow-lg bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground backdrop-blur-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setBookToDelete(book.id);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
