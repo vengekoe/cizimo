@@ -173,9 +173,30 @@ export const useBooks = () => {
 
       if (storyError) throw storyError;
 
-      // Sonra görselleri oluştur
+      // Kitap kapağı için görsel oluştur
+      toast.loading("Kitap kapağı oluşturuluyor...");
+      const { data: coverData } = await supabase.functions.invoke("generate-book-images", {
+        body: {
+          pages: [{
+            character: storyData.title,
+            emoji: storyData.pages[0]?.emoji || "📖",
+            title: storyData.title,
+            description: `Book cover for ${storyData.title}`,
+            sound: ""
+          }],
+          theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`
+        },
+      });
+
+      // Kapak görselini yükle
+      let coverImageUrl = null;
+      if (coverData?.images?.[0]) {
+        coverImageUrl = await uploadImageToStorage(coverData.images[0], bookId, -1);
+      }
+
+      // Sayfa görselleri oluştur
       toast.loading("Hikaye görselleri oluşturuluyor...");
-      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
+      const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: storyData.pages,
           theme
@@ -203,6 +224,7 @@ export const useBooks = () => {
         title: storyData.title,
         theme,
         coverEmoji: storyData.pages[0]?.emoji || "📖",
+        coverImage: coverImageUrl || undefined,
         pages,
       };
 

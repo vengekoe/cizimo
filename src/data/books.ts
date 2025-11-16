@@ -22,6 +22,7 @@ export const defaultBooks: Book[] = [
     title: "Orman Arkadaşları",
     theme: "Orman hayvanları ve dostluk",
     coverEmoji: "🌲",
+    coverImage: "/src/assets/book-cover.jpg", // Default kitabın kapak görseli
     pages: [
       {
         character: "Ayı",
