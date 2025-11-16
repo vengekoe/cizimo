@@ -3,7 +3,6 @@ import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
 import InteractiveElement from "@/components/InteractiveElement";
 import PageNavigation from "@/components/PageNavigation";
-import AudioPlayer from "@/components/AudioPlayer";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import bearPageImage from "@/assets/bear-page.jpg";
 import rabbitPageImage from "@/assets/rabbit-page.jpg";
@@ -66,10 +65,6 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Ormanda yaşıyorum ve yeni arkadaşlar arıyorum!
         </p>
-        <AudioPlayer 
-          text="Merhaba! Ben Ayı! Ormanda yaşıyorum ve yeni arkadaşlar arıyorum!" 
-          label="Dinle 🔊"
-        />
       </div>
       <InteractiveElement emoji="🐻" sound="Hav hav!" label="Tıkla benimle konuş!" />
     </BookPage>,
@@ -83,10 +78,6 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Çayırlarda hoplayıp zıplamayı çok severim!
         </p>
-        <AudioPlayer 
-          text="Merhaba! Ben Tavşan! Çayırlarda hoplayıp zıplamayı çok severim!" 
-          label="Dinle 🔊"
-        />
       </div>
       <InteractiveElement emoji="🐰" sound="Hop hop!" label="Benimle zıpla!" />
     </BookPage>,
@@ -100,10 +91,6 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-card bg-primary/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Geceleri yıldızları izlemeyi seviyorum!
         </p>
-        <AudioPlayer 
-          text="Merhaba! Ben Baykuş! Geceleri yıldızları izlemeyi seviyorum!" 
-          label="Dinle 🔊"
-        />
       </div>
       <InteractiveElement emoji="🦉" sound="Huu huu!" label="Benimle şarkı söyle!" />
     </BookPage>,
@@ -117,10 +104,6 @@ const Index = () => {
         <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
           Birlikte eğlenmeye ne dersin?
         </p>
-        <AudioPlayer 
-          text="Hepimiz Arkadaşız! Birlikte eğlenmeye ne dersin?" 
-          label="Dinle 🔊"
-        />
       </div>
       <InteractiveElement emoji="🎈" sound="Yaşasın!" label="Kutlama zamanı!" />
     </BookPage>,
