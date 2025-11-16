@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
 import InteractiveElement from "@/components/InteractiveElement";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
+import { Button } from "@/components/ui/button";
+import { Home } from "lucide-react";
 
 const BookReader = () => {
   const { bookId } = useParams();
@@ -39,11 +41,17 @@ const BookReader = () => {
   if (!book) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
+        <div className="text-center space-y-6">
           <h1 className="text-4xl font-bold mb-4">Kitap bulunamadı 📚</h1>
-          <p className="text-xl text-muted-foreground">
+          <p className="text-xl text-muted-foreground mb-6">
             Aradığınız kitap mevcut değil.
           </p>
+          <Link to="/">
+            <Button size="lg" className="gap-2">
+              <Home className="w-5 h-5" />
+              Kitaplığa Dön
+            </Button>
+          </Link>
         </div>
       </div>
     );
