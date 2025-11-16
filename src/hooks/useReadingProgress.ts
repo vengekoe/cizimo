@@ -11,21 +11,17 @@ export const useReadingProgress = (bookId: string = "default-book") => {
 
   // LocalStorage'dan ilerlemeyi yükle
   useEffect(() => {
-    const loadProgress = () => {
-      try {
-        const saved = localStorage.getItem(`reading_progress_${bookId}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setProgress(parsed);
-        }
-      } catch (error) {
-        console.error("İlerleme yükleme hatası:", error);
-      } finally {
-        setLoading(false);
+    try {
+      const saved = localStorage.getItem(`reading_progress_${bookId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setProgress(parsed);
       }
-    };
-
-    loadProgress();
+    } catch (error) {
+      console.error("İlerleme yükleme hatası:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [bookId]);
 
   // İlerlemeyi kaydet
@@ -43,6 +39,6 @@ export const useReadingProgress = (bookId: string = "default-book") => {
     progress,
     loading,
     saveProgress,
-    isLoggedIn: true, // Giriş kontrolü devre dışı
+    isLoggedIn: true,
   };
 };
