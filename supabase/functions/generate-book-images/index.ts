@@ -13,9 +13,9 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
@@ -24,21 +24,29 @@ serve(async (req) => {
       
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
 
-      const response = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-image-1",
-          prompt: prompt,
-          n: 1,
-          size: "1536x1024",
-          quality: "high",
-          output_format: "png",
-        }),
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GOOGLE_AI_API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 1,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 8192,
+              responseMimeType: "image/png"
+            }
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -47,23 +55,23 @@ serve(async (req) => {
         if (response.status === 429) {
           throw new Error("Rate limit aşıldı");
         }
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
           throw new Error("API anahtarı geçersiz");
         }
         return null;
       }
 
       const data = await response.json();
-      // gpt-image-1 her zaman base64 döndürür
-      const imageBase64 = data.data?.[0]?.b64_json;
+      // Gemini inline data formatı
+      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
       
-      if (!imageBase64) {
+      if (!inlineData?.data) {
         console.error(`No image data for index ${index}`);
         return null;
       }
 
-      // Base64'ü data URL formatına çevir
-      const imageDataUrl = `data:image/png;base64,${imageBase64}`;
+      // Gemini base64 data formatı
+      const imageDataUrl = `data:${inlineData.mimeType};base64,${inlineData.data}`;
       console.log(`Image ${index + 1} generated successfully`);
       
       return imageDataUrl;
