@@ -13,6 +13,7 @@ export interface Book {
   theme: string;
   coverEmoji: string;
   coverImage?: string; // Orijinal yüklenen çizim
+  isFromDrawing?: boolean; // Çizimden oluşturulmuş mu?
   pages: BookPage[];
 }
 

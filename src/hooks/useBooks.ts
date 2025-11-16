@@ -143,6 +143,7 @@ export const useBooks = () => {
         theme: storyData.metadata.theme,
         coverEmoji: storyData.pages[0]?.emoji || "🎨",
         coverImage: coverImageUrl || undefined,
+        isFromDrawing: true,
         pages,
       };
 
