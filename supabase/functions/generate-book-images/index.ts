@@ -33,12 +33,12 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "gpt-image-1",
+            model: "dall-e-3",
             prompt: prompt,
             n: 1,
-            size: "1536x1024",
-            quality: "high",
-            output_format: "png"
+            size: "1792x1024",
+            quality: "hd",
+            style: "vivid"
           }),
         }
       );
@@ -60,16 +60,15 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      const imageUrl = data.data?.[0]?.b64_json;
+      const imageUrl = data.data?.[0]?.url;
       
       if (!imageUrl) {
         console.error(`No image data for index ${index}`);
         return null;
       }
 
-      const base64Image = `data:image/png;base64,${imageUrl}`;
       console.log(`Image ${index + 1} generated successfully`);
-      return base64Image;
+      return imageUrl;
     });
 
     const images = await Promise.all(imagePromises);
