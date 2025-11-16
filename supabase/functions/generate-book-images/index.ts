@@ -38,6 +38,14 @@ serve(async (req) => {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          console.error(`Image ${index} rate limited`);
+          throw new Error("Rate limit aşıldı");
+        }
+        if (response.status === 402) {
+          console.error(`Image ${index} payment required`);
+          throw new Error("Ödeme gerekli");
+        }
         console.error(`Image ${index} generation failed:`, response.status);
         return null;
       }

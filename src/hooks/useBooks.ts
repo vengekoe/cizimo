@@ -118,7 +118,17 @@ export const useBooks = () => {
         }
       );
 
-      if (storyError) throw storyError;
+      if (storyError) {
+        // 402 Payment Required hatası için özel mesaj
+        if (storyError.message?.includes("402") || storyError.message?.includes("Ödeme gerekli")) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
+        // 429 Rate Limit hatası için özel mesaj
+        if (storyError.message?.includes("429") || storyError.message?.includes("Rate limit")) {
+          throw new Error("RATE_LIMIT");
+        }
+        throw storyError;
+      }
 
       setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
 
@@ -167,6 +177,23 @@ export const useBooks = () => {
     } catch (error) {
       console.error("Çizimden hikaye oluşturulamadı:", error);
       setProgress({ stage: null, percentage: 0, message: '' });
+      
+      // Özel hata mesajları
+      if (error instanceof Error) {
+        if (error.message === "PAYMENT_REQUIRED") {
+          toast.error("Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin.", {
+            duration: 8000,
+          });
+          return null;
+        }
+        if (error.message === "RATE_LIMIT") {
+          toast.error("Çok fazla istek gönderildi. Lütfen biraz bekleyip tekrar deneyin.", {
+            duration: 6000,
+          });
+          return null;
+        }
+      }
+      
       toast.error("Hikaye oluşturulamadı. Lütfen tekrar deneyin.");
       return null;
     } finally {
@@ -188,7 +215,17 @@ export const useBooks = () => {
         body: { theme },
       });
 
-      if (storyError) throw storyError;
+      if (storyError) {
+        // 402 Payment Required hatası için özel mesaj
+        if (storyError.message?.includes("402") || storyError.message?.includes("Ödeme gerekli")) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
+        // 429 Rate Limit hatası için özel mesaj
+        if (storyError.message?.includes("429") || storyError.message?.includes("Rate limit")) {
+          throw new Error("RATE_LIMIT");
+        }
+        throw storyError;
+      }
 
       setProgress({ stage: 'cover', percentage: 30, message: 'Kitap kapağı oluşturuluyor...' });
       
@@ -258,6 +295,23 @@ export const useBooks = () => {
     } catch (error) {
       console.error("Hikaye oluşturulamadı:", error);
       setProgress({ stage: null, percentage: 0, message: '' });
+      
+      // Özel hata mesajları
+      if (error instanceof Error) {
+        if (error.message === "PAYMENT_REQUIRED") {
+          toast.error("Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin.", {
+            duration: 8000,
+          });
+          return null;
+        }
+        if (error.message === "RATE_LIMIT") {
+          toast.error("Çok fazla istek gönderildi. Lütfen biraz bekleyip tekrar deneyin.", {
+            duration: 6000,
+          });
+          return null;
+        }
+      }
+      
       toast.error("Hikaye oluşturulamadı. Lütfen tekrar deneyin.");
       return null;
     } finally {
