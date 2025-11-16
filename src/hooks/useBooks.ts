@@ -52,25 +52,45 @@ export const useBooks = () => {
     }
   };
 
-  const uploadImageToStorage = async (base64Image: string, bookId: string, pageIndex: number): Promise<string | null> => {
+  const uploadImageToStorage = async (imageSource: string, bookId: string, pageIndex: number): Promise<string | null> => {
     try {
-      // Base64'ü blob'a çevir
-      const base64Data = base64Image.split(',')[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      let blob: Blob;
+      let ext = 'png';
+
+      if (imageSource.startsWith('data:image')) {
+        // Data URL (base64) -> Blob
+        const [header, base64Data] = imageSource.split(',');
+        const mimeMatch = header.match(/data:(image\/[a-zA-Z+]+);base64/);
+        const mime = mimeMatch?.[1] || 'image/png';
+        ext = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        blob = new Blob([byteArray], { type: mime });
+      } else if (/^https?:\/\//.test(imageSource)) {
+        // Remote URL -> fetch -> Blob (persist to our storage so it doesn't expire)
+        const resp = await fetch(imageSource);
+        if (!resp.ok) throw new Error(`Image fetch failed: ${resp.status}`);
+        blob = await resp.blob();
+        const mime = blob.type || 'image/png';
+        ext = (mime.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      } else {
+        throw new Error('Unsupported image source format');
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/png' });
-      
-      const fileName = `${bookId}/page-${pageIndex}.png`;
-      
-      const { data, error } = await supabase.storage
+
+      const baseName = pageIndex >= 0 ? `page-${pageIndex}` : 'cover';
+      const safeExt = ext.includes(';') ? 'png' : ext;
+      const fileName = `${bookId}/${baseName}.${safeExt}`;
+
+      const { error } = await supabase.storage
         .from('book-images')
         .upload(fileName, blob, {
           cacheControl: '3600',
-          upsert: true
+          upsert: true,
         });
 
       if (error) {
@@ -86,10 +106,13 @@ export const useBooks = () => {
       return publicUrl;
     } catch (error) {
       console.error('Image upload failed:', error);
+      // As a fallback, if we received a remote URL, return it to avoid blocking book creation (may expire)
+      if (/^https?:\/\//.test(imageSource)) {
+        return imageSource;
+      }
       return null;
     }
   };
-
   const generateBookFromDrawing = async (imageFile: File) => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
