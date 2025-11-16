@@ -4,9 +4,11 @@ import bookCoverImage from "@/assets/book-cover.jpg";
 
 interface BookCoverProps {
   onStart: () => void;
+  title?: string;
+  emoji?: string;
 }
 
-const BookCover = ({ onStart }: BookCoverProps) => {
+const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲" }: BookCoverProps) => {
   return (
     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/20 to-accent/20">
       <div className="absolute inset-0 animate-fade-in">
@@ -23,12 +25,14 @@ const BookCover = ({ onStart }: BookCoverProps) => {
       </div>
       
       <div className="relative z-10 flex flex-col items-center gap-8 p-8 animate-scale-in">
+        <div className="text-8xl mb-4 animate-bounce-gentle">{emoji}</div>
+        
         <h1 className="text-5xl md:text-7xl font-bold text-center text-primary drop-shadow-2xl">
-          Arkadaşlarımızla Macera
+          {title}
         </h1>
         
         <p className="text-2xl md:text-3xl text-center text-foreground drop-shadow-lg max-w-2xl">
-          Ormanın sevimli dostlarıyla tanış!
+          Bir hikaye macerasına hazır ol!
         </p>
         
         <Button
