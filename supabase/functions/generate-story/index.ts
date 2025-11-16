@@ -13,34 +13,27 @@ serve(async (req) => {
 
   try {
     const { theme } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: "Sen çocuklar için hikaye yazan bir yardımcısın. Her zaman JSON formatında yanıt verirsin."
-            },
-            {
-              role: "user",
-              content: `${theme} temalı, 5 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
+          contents: [{
+            parts: [{
+              text: `Sen çocuklar için hikaye yazan bir yardımcısın. ${theme} temalı, 5 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
 - Karakter adı ve emoji
 - Kısa bir başlık (maksimum 6 kelime)
 - Karakter için kısa bir açıklama (maksimum 12 kelime)
 - Karakterin ses efekti (maksimum 3 kelime)
 
-Yanıtını SADECE JSON formatında ver:
+Yanıtını SADECE JSON formatında ver, başka hiçbir şey yazma:
 {
   "title": "Kitap Başlığı",
   "pages": [
@@ -53,16 +46,22 @@ Yanıtını SADECE JSON formatında ver:
     }
   ]
 }`
-            }
-          ],
-          response_format: { type: "json_object" }
+            }]
+          }],
+          generationConfig: {
+            temperature: 1,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json"
+          }
         }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Lovable AI error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -70,26 +69,26 @@ Yanıtını SADECE JSON formatında ver:
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (response.status === 403) {
         return new Response(
-          JSON.stringify({ error: "Lovable AI kredileriniz tükendi. Settings → Workspace → Usage bölümünden kredi ekleyin." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Gemini API anahtarı geçersiz veya eksik." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`Lovable AI error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Lovable AI response data:", JSON.stringify(data).substring(0, 200));
+    console.log("Gemini response data:", JSON.stringify(data).substring(0, 200));
     
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!content) {
       console.error("No content in response:", JSON.stringify(data));
-      throw new Error("Lovable AI'dan içerik alınamadı");
+      throw new Error("Gemini'den içerik alınamadı");
     }
     
-    console.log("Content from Lovable AI:", content.substring(0, 200));
+    console.log("Content from Gemini:", content.substring(0, 200));
     
     let story;
     try {

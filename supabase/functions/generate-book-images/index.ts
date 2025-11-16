@@ -13,34 +13,34 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
     const imagePromises = pages.map(async (page: any, index: number) => {
-      const prompt = `Children's book illustration: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Colorful, friendly, safe for children, high quality digital art, vibrant colors.`;
+      const prompt = `Create a vibrant children's book illustration: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Style: Colorful, friendly, safe for children, high quality digital art, warm and inviting.`;
       
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
 
       const response = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImages?key=${GOOGLE_AI_API_KEY}`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image-preview",
-            messages: [
-              {
-                role: "user",
-                content: prompt
-              }
-            ],
-            modalities: ["image", "text"]
+            instances: [{
+              prompt: prompt
+            }],
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: "16:9",
+              safetyFilterLevel: "block_most",
+              personGeneration: "allow_adult"
+            }
           }),
         }
       );
@@ -52,22 +52,24 @@ serve(async (req) => {
         if (response.status === 429) {
           throw new Error("Rate limit aşıldı");
         }
-        if (response.status === 402) {
-          throw new Error("Lovable AI kredisi yetersiz");
+        if (response.status === 403) {
+          throw new Error("Gemini API anahtarı geçersiz");
         }
         return null;
       }
 
       const data = await response.json();
-      const imageBase64 = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
       
       if (!imageBase64) {
         console.error(`No image data for index ${index}`);
         return null;
       }
 
+      // Gemini base64'ü data URL formatına çevir
+      const dataUrl = `data:image/png;base64,${imageBase64}`;
       console.log(`Image ${index + 1} generated successfully`);
-      return imageBase64;
+      return dataUrl;
     });
 
     const images = await Promise.all(imagePromises);
