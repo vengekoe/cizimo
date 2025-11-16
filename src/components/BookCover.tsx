@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Home } from "lucide-react";
 import { Link } from "react-router-dom";
 import AnimatedElements from "./AnimatedElements";
-import bookCoverImage from "@/assets/book-cover.jpg";
 
 interface BookCoverProps {
   onStart: () => void;

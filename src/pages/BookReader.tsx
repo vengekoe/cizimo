@@ -6,13 +6,6 @@ import InteractiveElement from "@/components/InteractiveElement";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
-import bearPageImage from "@/assets/bear-page.jpg";
-import rabbitPageImage from "@/assets/rabbit-page.jpg";
-import owlPageImage from "@/assets/owl-page.jpg";
-import celebrationPageImage from "@/assets/celebration-page.jpg";
-
-const backgrounds = [bearPageImage, rabbitPageImage, owlPageImage, celebrationPageImage];
-const animations = ["butterfly", "butterfly", "stars", "celebration"] as const;
 
 const BookReader = () => {
   const { bookId } = useParams();
@@ -87,8 +80,20 @@ const BookReader = () => {
   }
 
   const page = book.pages[currentPage];
-  const bgImage = page.backgroundImage || backgrounds[currentPage % backgrounds.length];
-  const animation = animations[currentPage % animations.length];
+  const bgImage = page.backgroundImage;
+  
+  // Animasyon tipini sayfa numarasına göre belirle
+  const animationTypes = ["butterfly", "butterfly", "stars", "celebration"] as const;
+  const animation = animationTypes[currentPage % animationTypes.length];
+  
+  // Görsel yoksa gradient arka plan kullan
+  const gradientBackgrounds = [
+    "from-blue-400/20 via-purple-400/20 to-pink-400/20",
+    "from-green-400/20 via-teal-400/20 to-cyan-400/20",
+    "from-orange-400/20 via-red-400/20 to-pink-400/20",
+    "from-yellow-400/20 via-orange-400/20 to-red-400/20",
+  ];
+  const gradientBg = gradientBackgrounds[currentPage % gradientBackgrounds.length];
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -103,6 +108,7 @@ const BookReader = () => {
           backgroundImage={bgImage}
           pageNumber={currentPage + 1}
           animationType={animation}
+          gradientFallback={gradientBg}
         >
           <div className="text-center space-y-8 animate-fade-in">
             <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">

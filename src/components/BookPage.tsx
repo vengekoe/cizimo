@@ -3,18 +3,23 @@ import AnimatedElements from "./AnimatedElements";
 
 interface BookPageProps {
   children: ReactNode;
-  backgroundImage: string;
+  backgroundImage?: string;
   pageNumber: number;
   animationType?: "sun" | "butterfly" | "stars" | "celebration";
+  gradientFallback?: string;
 }
 
-const BookPage = ({ children, backgroundImage, pageNumber, animationType }: BookPageProps) => {
+const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradientFallback }: BookPageProps) => {
   return (
     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
-      />
+      {backgroundImage ? (
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+      ) : (
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradientFallback || 'from-primary/20 via-secondary/20 to-accent/20'}`} />
+      )}
       
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-book-page/10 to-book-page/30 pointer-events-none z-0" />
       
