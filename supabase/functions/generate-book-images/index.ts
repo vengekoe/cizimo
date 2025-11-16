@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -12,51 +13,64 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+
+    console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
     const imagePromises = pages.map(async (page: any, index: number) => {
-      const prompt = `Children's book illustration, ${theme} theme, featuring ${page.character} ${page.emoji}. ${page.description}. Colorful, friendly, safe for children, high quality digital art, 16:9 aspect ratio`;
+      const prompt = `Children's book illustration, ${theme} theme, featuring ${page.character} ${page.emoji}. ${page.description}. Colorful, friendly, safe for children, high quality digital art, vibrant colors, 16:9 aspect ratio`;
       
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
+
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-          modalities: ["image", "text"],
+          model: "gpt-image-1",
+          prompt: prompt,
+          n: 1,
+          size: "1536x1024",
+          quality: "high",
+          output_format: "png",
         }),
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Image ${index + 1} generation failed:`, response.status, errorText);
+        
         if (response.status === 429) {
-          console.error(`Image ${index} rate limited`);
           throw new Error("Rate limit aşıldı");
         }
-        if (response.status === 402) {
-          console.error(`Image ${index} payment required`);
-          throw new Error("Ödeme gerekli");
+        if (response.status === 401) {
+          throw new Error("API anahtarı geçersiz");
         }
-        console.error(`Image ${index} generation failed:`, response.status);
         return null;
       }
 
       const data = await response.json();
-      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      // gpt-image-1 her zaman base64 döndürür
+      const imageBase64 = data.data?.[0]?.b64_json;
       
-      return imageUrl || null;
+      if (!imageBase64) {
+        console.error(`No image data for index ${index}`);
+        return null;
+      }
+
+      // Base64'ü data URL formatına çevir
+      const imageDataUrl = `data:image/png;base64,${imageBase64}`;
+      console.log(`Image ${index + 1} generated successfully`);
+      
+      return imageDataUrl;
     });
 
     const images = await Promise.all(imagePromises);
+    console.log(`Successfully generated ${images.filter(img => img !== null).length} images`);
 
     return new Response(JSON.stringify({ images }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
