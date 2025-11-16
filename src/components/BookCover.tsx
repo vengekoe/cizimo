@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import AnimatedElements from "./AnimatedElements";
 import bookCoverImage from "@/assets/book-cover.jpg";
 
 interface BookCoverProps {
@@ -14,6 +15,11 @@ const BookCover = ({ onStart }: BookCoverProps) => {
           alt="Kitap Kapağı" 
           className="w-full h-full object-cover"
         />
+      </div>
+      
+      {/* Animasyonlu öğeler */}
+      <div className="absolute inset-0 pointer-events-none">
+        <AnimatedElements type="sun" />
       </div>
       
       <div className="relative z-10 flex flex-col items-center gap-8 p-8 animate-scale-in">
