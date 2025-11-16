@@ -24,12 +24,21 @@ const BookSidebar = ({ books, currentBookId }: BookSidebarProps) => {
   };
 
   return (
-    <aside
-      className={cn(
-        "fixed right-0 top-0 h-screen bg-gradient-to-b from-primary/10 to-accent/10 backdrop-blur-md border-l border-border/50 transition-all duration-300 z-50 overflow-y-auto shadow-2xl",
-        isOpen ? "w-72" : "w-16"
+    <>
+      {/* Backdrop - menü açıkken arka plana tıklanınca kapat */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-fade-in"
+          onClick={() => setIsOpen(false)}
+        />
       )}
-    >
+      
+      <aside
+        className={cn(
+          "fixed right-0 top-0 h-screen bg-gradient-to-b from-primary/10 to-accent/10 backdrop-blur-md border-l border-border/50 transition-all duration-300 z-50 overflow-y-auto shadow-2xl",
+          isOpen ? "w-72" : "w-16"
+        )}
+      >
       <div className="p-4">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -115,6 +124,7 @@ const BookSidebar = ({ books, currentBookId }: BookSidebarProps) => {
         )}
       </div>
     </aside>
+    </>
   );
 };
 
