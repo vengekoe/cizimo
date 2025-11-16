@@ -58,7 +58,7 @@ const Home = () => {
 
   // Gökkuşağı Ormanı'nın Kayıp Rengi kitabını çizimden işaretle
   useEffect(() => {
-    const storedBooks = localStorage.getItem("childrenBooks");
+    const storedBooks = localStorage.getItem("storybooks");
     if (storedBooks) {
       const parsedBooks = JSON.parse(storedBooks);
       const rainbowBook = parsedBooks.find((book: any) => 
@@ -71,7 +71,7 @@ const Home = () => {
             ? { ...book, isFromDrawing: true }
             : book
         );
-        localStorage.setItem("childrenBooks", JSON.stringify(updatedBooks));
+        localStorage.setItem("storybooks", JSON.stringify(updatedBooks));
         window.location.reload();
       }
     }
