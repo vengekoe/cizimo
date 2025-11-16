@@ -4,6 +4,7 @@ export interface BookPage {
   title: string;
   description: string;
   sound: string;
+  backgroundImage?: string;
 }
 
 export interface Book {

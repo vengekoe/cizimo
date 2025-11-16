@@ -8,16 +8,19 @@ import BookReader from "./pages/BookReader";
 import NotFound from "./pages/NotFound";
 import BookSidebar from "./components/BookSidebar";
 import { useBooks } from "./hooks/useBooks";
+import { cn } from "./lib/utils";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const { books } = useBooks();
+  const location = window.location;
+  const isBookReader = location.pathname.includes('/book/');
 
   return (
     <div className="flex w-full">
-      <BookSidebar books={books} />
-      <main className="ml-16 flex-1 w-full">
+      {!isBookReader && <BookSidebar books={books} />}
+      <main className={cn("flex-1 w-full", !isBookReader && "mr-16")}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/book/:bookId" element={<BookReader />} />

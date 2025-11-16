@@ -26,7 +26,7 @@ const BookSidebar = ({ books, currentBookId }: BookSidebarProps) => {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen bg-gradient-to-b from-primary/10 to-accent/10 backdrop-blur-md border-r border-border/50 transition-all duration-300 z-50 overflow-y-auto",
+        "fixed right-0 top-0 h-screen bg-gradient-to-b from-primary/10 to-accent/10 backdrop-blur-md border-l border-border/50 transition-all duration-300 z-50 overflow-y-auto shadow-2xl",
         isOpen ? "w-72" : "w-16"
       )}
     >
@@ -35,14 +35,14 @@ const BookSidebar = ({ books, currentBookId }: BookSidebarProps) => {
           onClick={() => setIsOpen(!isOpen)}
           className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-primary/20 transition-colors"
         >
-          <span className={cn("font-bold text-foreground", !isOpen && "hidden")}>
-            📚 Kitaplarım
-          </span>
           {isOpen ? (
             <ChevronDown className="w-5 h-5" />
           ) : (
             <BookOpen className="w-5 h-5" />
           )}
+          <span className={cn("font-bold text-foreground", !isOpen && "hidden")}>
+            📚 Kitaplarım
+          </span>
         </button>
 
         {isOpen && (

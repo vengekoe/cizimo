@@ -81,7 +81,7 @@ const BookReader = () => {
   }
 
   const page = book.pages[currentPage];
-  const bgImage = backgrounds[currentPage % backgrounds.length];
+  const bgImage = page.backgroundImage || backgrounds[currentPage % backgrounds.length];
   const animation = animations[currentPage % animations.length];
 
   return (
