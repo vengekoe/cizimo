@@ -77,7 +77,7 @@ const BookReader = () => {
   };
 
   if (currentPage === -1) {
-    return <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} />;
+    return <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} coverImage={book.coverImage} />;
   }
 
   const page = book.pages[currentPage];
