@@ -12,19 +12,36 @@ interface BookCoverProps {
 }
 
 const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", coverImage }: BookCoverProps) => {
-  // Her kitap için benzersiz gradient oluştur
-  const gradientColors = [
-    "from-purple-500/30 via-pink-500/30 to-red-500/30",
-    "from-blue-500/30 via-cyan-500/30 to-teal-500/30",
-    "from-green-500/30 via-emerald-500/30 to-lime-500/30",
-    "from-orange-500/30 via-amber-500/30 to-yellow-500/30",
-    "from-indigo-500/30 via-violet-500/30 to-purple-500/30",
+  // Her kitap için benzersiz gradient ve buton renkleri oluştur
+  const colorThemes = [
+    { 
+      gradient: "from-purple-500/30 via-pink-500/30 to-red-500/30",
+      button: "from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+    },
+    { 
+      gradient: "from-blue-500/30 via-cyan-500/30 to-teal-500/30",
+      button: "from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+    },
+    { 
+      gradient: "from-green-500/30 via-emerald-500/30 to-lime-500/30",
+      button: "from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+    },
+    { 
+      gradient: "from-orange-500/30 via-amber-500/30 to-yellow-500/30",
+      button: "from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
+    },
+    { 
+      gradient: "from-indigo-500/30 via-violet-500/30 to-purple-500/30",
+      button: "from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+    },
   ];
   
-  const randomGradient = gradientColors[Math.floor(Math.random() * gradientColors.length)];
+  // Başlığa göre tutarlı bir tema seç
+  const themeIndex = Math.abs(title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colorThemes.length;
+  const theme = colorThemes[themeIndex];
   
   return (
-    <div className={`relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br ${randomGradient}`}>
+    <div className={`relative w-full h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br ${theme.gradient}`}>
       <div className="absolute inset-0 animate-fade-in">
         {coverImage ? (
           <img 
@@ -33,7 +50,7 @@ const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", cov
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className={`w-full h-full bg-gradient-to-br ${randomGradient} opacity-50`} />
+          <div className={`w-full h-full bg-gradient-to-br ${theme.gradient} opacity-50`} />
         )}
       </div>
       
@@ -68,7 +85,7 @@ const BookCover = ({ onStart, title = "Orman Arkadaşları", emoji = "🌲", cov
         <Button
           onClick={onStart}
           size="lg"
-          className="text-2xl md:text-3xl px-12 py-8 bg-gradient-to-r from-primary to-accent hover:scale-110 transition-all duration-300 shadow-2xl bounce-gentle"
+          className={`text-2xl md:text-3xl px-12 py-8 bg-gradient-to-r ${theme.button} text-white transition-all duration-300 shadow-2xl hover:scale-110 bounce-gentle`}
         >
           Kitabı Aç 📖
         </Button>
