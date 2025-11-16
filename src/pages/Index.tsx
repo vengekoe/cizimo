@@ -153,15 +153,13 @@ const Index = () => {
         {pages[currentPage]}
       </div>
 
-      {currentPage < totalPages - 1 && (
-        <PageNavigation
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
-          onHome={handleHome}
-        />
-      )}
+      <PageNavigation
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onNext={handleNext}
+        onPrevious={handlePrevious}
+        onHome={handleHome}
+      />
     </div>
   );
 };
