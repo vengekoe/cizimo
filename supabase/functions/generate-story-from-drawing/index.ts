@@ -98,44 +98,37 @@ JSON formatında dön:
         messages: [
           {
             role: "system",
-            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturuyorsun.",
+            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Önce kafanda olay örgüsünü planlar, sonra sayfalara bölersin. Yanıtın yalnızca geçerli JSON olmalıdır.",
           },
           {
             role: "user",
-            content: `Şu özelliklere sahip baştan sona tutarlı, akıcı bir çocuk hikayesi yaz:
+            content: `Aşağıdaki özelliklere dayanarak BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}
 Duygu: ${analysis.mood}
 Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
 
-ÖNEMLİ: 
-- Hikaye baştan sona tutarlı bir akışa sahip olmalı
-- Her sayfa bir öncekinin devamı olmalı
-- Karakterler hikaye boyunca gelişmeli
-- Bir başlangıç, gelişme ve sonuç olmalı
-- Son sayfada mutlu bir final olmalı
+KURALLAR:
+1) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula; olaylar mantıksal olarak ilerlesin.
+2) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin DOĞRUDAN devamı olsun.
+3) Aynı karakterler hikaye boyunca tutarlı davransın, yer-zaman değişimleri yumuşak geçişlerle olsun.
+4) Son sayfada pozitif ve kapanış yapan bir final olsun.
 
-Hikayi 10 sayfaya böl. Her sayfa için:
-- character: Karakterlerden birinin adı
-- emoji: Karaktere uygun emoji
-- title: Sayfa başlığı (maksimum 8 kelime, hikaye akışına uygun)
-- description: Hikaye cümlesi (maksimum 20 kelime, bir önceki sayfanın devamı niteliğinde)
-- sound: Duruma uygun ses efekti
-
-JSON formatında dön:
+ÇIKTI FORMATIN (yalnızca JSON):
 {
   "title": "${analysis.title}",
   "pages": [
     {
       "character": "Karakter Adı",
       "emoji": "🎨",
-      "title": "Sayfa Başlığı",
-      "description": "Hikaye cümlesi",
-      "sound": "Ses efekti"
+      "title": "Sayfa Başlığı (<= 8 kelime)",
+      "description": "Önceki sayfanın devamı olacak şekilde 1-2 cümle, akıcı ve bağlamsal (<= 25 kelime)",
+      "sound": "Uygun ses efekti"
     }
   ]
-}`
+}
+`
           },
         ],
       }),
