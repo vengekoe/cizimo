@@ -13,9 +13,9 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
@@ -27,50 +27,45 @@ serve(async (req) => {
     }
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`;
+      const url = "https://api.openai.com/v1/images/generations";
       const body = JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-        },
+        model: "gpt-image-1",
+        prompt,
+        n: 1,
+        size: "1024x1024",
+        response_format: "b64_json",
       });
 
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
         body,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Image generation failed (attempt ${attempt}):`, response.status, errorText);
-
+        console.error(`OpenAI image gen failed (attempt ${attempt}):`, response.status, errorText);
         if (response.status === 429 && attempt < 3) {
-          // Exponential backoff
           const retryAfter = Number(response.headers.get("retry-after")) || 8 * attempt;
           await delay(retryAfter * 1000);
           return generateImageWithRetry(prompt, attempt + 1);
         }
-        if (response.status === 403) {
-          throw new Error("Gemini API anahtarı geçersiz veya erişim reddedildi");
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("OPENAI_API_KEY geçersiz veya yetkisiz");
         }
         return null;
       }
 
       const data = await response.json();
-      // Find first inlineData image
-      const parts = data.candidates?.[0]?.content?.parts || [];
-      const inline = parts.find((p: any) => p.inlineData)?.inlineData;
-      const base64 = inline?.data as string | undefined;
-      const mime = inline?.mimeType as string | undefined;
-
-      if (!base64) {
-        console.error("No inline image returned by Gemini for prompt.");
+      const b64 = data?.data?.[0]?.b64_json as string | undefined;
+      if (!b64) {
+        console.error("OpenAI 'b64_json' döndürmedi");
         return null;
       }
-
-      const dataUrl = `data:${mime || "image/png"};base64,${base64}`;
-      return dataUrl;
+      return `data:image/png;base64,${b64}`;
     }
 
     for (let index = 0; index < pages.length; index++) {
