@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-interface InteractiveElementProps {
+interface ClickInteractionProps {
   emoji: string;
   sound: string;
   label: string;
   position?: "top" | "bottom" | "center";
 }
 
-const InteractiveElement = ({ emoji, sound, label, position = "bottom" }: InteractiveElementProps) => {
+const ClickInteraction = ({ emoji, sound, label, position = "bottom" }: ClickInteractionProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [clickCount, setClickCount] = useState(0);
 
@@ -54,4 +54,4 @@ const InteractiveElement = ({ emoji, sound, label, position = "bottom" }: Intera
   );
 };
 
-export default InteractiveElement;
+export default ClickInteraction;
