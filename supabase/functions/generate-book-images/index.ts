@@ -1,10 +1,22 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const pageSchema = z.object({
+  character: z.string().max(50),
+  emoji: z.string().max(10),
+  description: z.string().max(200),
+});
+
+const requestSchema = z.object({
+  pages: z.array(pageSchema).min(1, "At least one page is required").max(20, "Maximum 20 pages allowed"),
+  theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,7 +24,8 @@ serve(async (req) => {
   }
 
   try {
-    const { pages, theme } = await req.json();
+    const body = await req.json();
+    const { pages, theme } = requestSchema.parse(body);
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
     if (!GOOGLE_AI_API_KEY) {
@@ -88,9 +101,14 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Image generation error:", e);
+    const isValidationError = e instanceof z.ZodError;
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Bilinmeyen hata" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: isValidationError 
+          ? `Validation error: ${e.errors.map(err => err.message).join(', ')}`
+          : e instanceof Error ? e.message : "Bilinmeyen hata" 
+      }),
+      { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
