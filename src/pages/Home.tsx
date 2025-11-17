@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Sparkles, Paintbrush, Trash2, Star, Clock } from "lucide-react";
+import { Loader2, Sparkles, Paintbrush, Trash2, Star, Clock, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
@@ -34,12 +35,20 @@ const themes = [
 
 const Home = () => {
   const { books, loading, progress, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite } = useBooks();
+  const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
+
+  // Kullanıcı giriş yapmamışsa auth sayfasına yönlendir
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
 
   // Kitapları sıralama tipine göre sırala
   const sortedBooks = [...books].sort((a, b) => {
@@ -140,13 +149,24 @@ const Home = () => {
       />
       <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/70 to-background/80" />
       <div className="relative z-10 container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Hikaye Kitaplığım 📚
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Yapay zeka ile benzersiz hikayeler keşfet!
-          </p>
+        <div className="flex justify-between items-start mb-12">
+          <div className="text-center flex-1">
+            <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Hikaye Kitaplığım 📚
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Yapay zeka ile benzersiz hikayeler keşfet!
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={signOut}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            Çıkış Yap
+          </Button>
         </div>
 
         {/* Mevcut Kitaplar */}
