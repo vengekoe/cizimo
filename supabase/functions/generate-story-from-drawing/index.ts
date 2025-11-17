@@ -98,25 +98,30 @@ JSON formatında dön:
         messages: [
           {
             role: "system",
-            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Verilen karakterler ve temayla eğlenceli ve öğretici hikayeler oluşturuyorsun.",
+            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturuyorsun.",
           },
           {
             role: "user",
-            content: `Şu özelliklere sahip 10 sayfalık bir çocuk hikayesi yaz:
+            content: `Şu özelliklere sahip baştan sona tutarlı, akıcı bir çocuk hikayesi yaz:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}
 Duygu: ${analysis.mood}
-Karakterler: ${analysis.characters.map((c: any) => c.name).join(", ")}
+Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
 
-Her sayfa için:
-- Karakter adı (verilen karakterlerden biri)
-- Emoji (karaktere uygun)
-- Sayfa başlığı (maksimum 8 kelime)
-- Açıklama (maksimum 15 kelime)
-- Ses efekti
+ÖNEMLİ: 
+- Hikaye baştan sona tutarlı bir akışa sahip olmalı
+- Her sayfa bir öncekinin devamı olmalı
+- Karakterler hikaye boyunca gelişmeli
+- Bir başlangıç, gelişme ve sonuç olmalı
+- Son sayfada mutlu bir final olmalı
 
-Hikaye pozitif bir mesaj içermeli ve çocukların hayal gücünü geliştirmeli.
+Hikayi 10 sayfaya böl. Her sayfa için:
+- character: Karakterlerden birinin adı
+- emoji: Karaktere uygun emoji
+- title: Sayfa başlığı (maksimum 8 kelime, hikaye akışına uygun)
+- description: Hikaye cümlesi (maksimum 20 kelime, bir önceki sayfanın devamı niteliğinde)
+- sound: Duruma uygun ses efekti
 
 JSON formatında dön:
 {
@@ -126,7 +131,7 @@ JSON formatında dön:
       "character": "Karakter Adı",
       "emoji": "🎨",
       "title": "Sayfa Başlığı",
-      "description": "Açıklama",
+      "description": "Hikaye cümlesi",
       "sound": "Ses efekti"
     }
   ]
