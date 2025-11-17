@@ -140,7 +140,7 @@ JSON formatında dön:
           messages: [
             {
               role: "system",
-              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yanıtın yalnızca geçerli JSON olmalıdır.",
+              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. YANITINI SADECE 'create_story' adlı aracı çağırarak ver; başka içerik ekleme.",
             },
             {
               role: "user",
@@ -208,8 +208,7 @@ KURALLAR:
             }
           ],
           tool_choice: { type: "function", function: { name: "create_story" } },
-          max_completion_tokens: 1024,
-          response_format: { type: "json_object" },
+          max_completion_tokens: 2048,
         }),
     });
 
@@ -241,44 +240,59 @@ KURALLAR:
     }
 
     const storyData = await storyResponse.json();
-    // Prefer tool_call function arguments when available (more reliable for structured output)
-    const choice = storyData.choices?.[0]?.message ?? {};
-    const toolArgs = choice?.tool_calls?.[0]?.function?.arguments as string | undefined;
-    const storyRaw = choice?.content as string | undefined;
+    const choice = storyData.choices?.[0] ?? {};
+    const message = choice.message ?? {};
+    const toolCall = message?.tool_calls?.[0];
+    const toolArgsRaw = toolCall?.function?.arguments;
+    const functionCallArgsRaw = message?.function_call?.arguments;
+    const storyRaw = message?.content as string | undefined;
 
     console.log("Story generated successfully");
 
-    let story: any;
-    // 1) Try tool call arguments JSON
-    if (toolArgs && typeof toolArgs === "string") {
-      try {
-        story = JSON.parse(toolArgs);
-      } catch (e) {
-        console.warn("Failed to parse tool_call arguments JSON:", e);
+    const tryParse = (val: unknown) => {
+      if (!val) return undefined as any;
+      if (typeof val === "string") {
+        try { return JSON.parse(val); } catch { return undefined as any; }
       }
-    }
-    // 2) Try direct content JSON
-    if (!story) {
-      try {
-        story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
-      } catch (err) {
-        console.error("Primary story JSON parse failed, attempting brace-slice:", err);
-        if (typeof storyRaw === "string") {
-          const start = storyRaw.indexOf("{");
-          const end = storyRaw.lastIndexOf("}");
-          if (start !== -1 && end !== -1) {
-            try {
-              story = JSON.parse(storyRaw.slice(start, end + 1));
-            } catch (e2) {
-              console.error("Brace-slice parse failed:", e2);
-            }
-          }
+      if (typeof val === "object") return val as any;
+      return undefined as any;
+    };
+
+    let story: any =
+      tryParse(toolArgsRaw) ??
+      tryParse(functionCallArgsRaw) ??
+      tryParse(storyRaw);
+
+    if (!story && typeof storyRaw === "string") {
+      console.error("Primary story JSON parse failed, attempting brace-slice");
+      const start = storyRaw.indexOf("{");
+      const end = storyRaw.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        try {
+          story = JSON.parse(storyRaw.slice(start, end + 1));
+        } catch (e2) {
+          console.error("Brace-slice parse failed:", e2);
         }
       }
     }
 
+    if (!story && typeof toolArgsRaw === "string") {
+      const start = toolArgsRaw.indexOf("{");
+      const end = toolArgsRaw.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        try {
+          story = JSON.parse(toolArgsRaw.slice(start, end + 1));
+        } catch { /* ignore */ }
+      }
+    }
+
     if (!story) {
-      console.error("Story parse failed. Debug lengths -> toolArgs:", toolArgs?.length ?? 0, "content:", storyRaw?.length ?? 0);
+      console.error(
+        "Story parse failed. Debug -> hasToolCalls:", Boolean(toolCall),
+        "toolArgsType:", typeof toolArgsRaw,
+        "hasFunctionCall:", Boolean(functionCallArgsRaw),
+        "contentLen:", storyRaw?.length ?? 0
+      );
       throw new Error("Invalid story format from AI response");
     }
 
