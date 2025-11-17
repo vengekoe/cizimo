@@ -117,12 +117,15 @@ JSON formatında dön:
     }
 
     const analysisData = await analysisResponse.json();
-    const analysisContent = analysisData.choices[0].message.content;
-    
-    const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Invalid analysis format");
-    
-    const analysis = JSON.parse(jsonMatch[0]);
+    const analysisRaw = analysisData.choices?.[0]?.message?.content;
+    let analysis: any;
+    try {
+      analysis = typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : analysisRaw;
+    } catch {
+      const match = typeof analysisRaw === "string" ? analysisRaw.match(/\{[\s\S]*\}/) : null;
+      if (!match) throw new Error("Invalid analysis format");
+      analysis = JSON.parse(match[0]);
+    }
     console.log("Analysis complete - Title:", analysis.title);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
@@ -203,32 +206,46 @@ KURALLAR:
     }
 
     const storyData = await storyResponse.json();
-    const storyContent = storyData.choices[0].message.content;
-    
+    const storyRaw = storyData.choices?.[0]?.message?.content;
+
     console.log("Story generated successfully");
-    
-    // Try to extract JSON from markdown code blocks or plain text
-    let jsonStr = storyContent;
-    
-    // Remove markdown code blocks if present
-    const codeBlockMatch = storyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (codeBlockMatch) {
-      jsonStr = codeBlockMatch[1];
-    } else {
-      // Try to find JSON object in the text
-      const jsonMatch = storyContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[0];
+
+    // Parse JSON strictly; response_format=json_object should ensure validity
+    let story: any;
+    try {
+      story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
+    } catch (err) {
+      console.error("Primary story JSON parse failed, attempting brace-slice:", err);
+      if (typeof storyRaw === "string") {
+        const start = storyRaw.indexOf("{");
+        const end = storyRaw.lastIndexOf("}");
+        if (start !== -1 && end !== -1) {
+          try {
+            story = JSON.parse(storyRaw.slice(start, end + 1));
+          } catch (e2) {
+            console.error("Brace-slice parse failed:", e2);
+            throw new Error("Invalid story format from AI response");
+          }
+        } else {
+          throw new Error("Invalid story format from AI response");
+        }
+      } else {
+        throw new Error("Invalid story format from AI response");
       }
     }
-    
-    let story;
-    try {
-      story = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Failed to parse story JSON:", parseError);
-      throw new Error("Invalid story format from AI response");
-    }
+
+    // Minimal schema validation for robustness
+    const storySchema = z.object({
+      title: z.string().min(1),
+      pages: z.array(z.object({
+        character: z.string().min(1),
+        emoji: z.string().min(1),
+        title: z.string().min(1),
+        description: z.string().min(1),
+        sound: z.string().min(1),
+      })).min(1),
+    });
+    story = storySchema.parse(story);
 
     return new Response(
       JSON.stringify({
