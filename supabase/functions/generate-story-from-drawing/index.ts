@@ -72,8 +72,9 @@ JSON formatında dön:
     });
 
     if (!analysisResponse.ok) {
-      console.error("Analysis failed:", analysisResponse.status);
-      throw new Error("Failed to analyze drawing");
+      const errorText = await analysisResponse.text();
+      console.error("Analysis failed:", analysisResponse.status, errorText);
+      throw new Error(`Failed to analyze drawing: ${analysisResponse.status} - ${errorText}`);
     }
 
     const analysisData = await analysisResponse.json();
