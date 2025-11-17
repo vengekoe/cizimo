@@ -17,52 +17,44 @@ serve(async (req) => {
     
     if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Sen çocuklar için hikaye yazan bir yardımcısın. ${theme} temalı, 5 sayfalık bir çocuk hikayesi yaz. Her sayfa için:
-- Karakter adı ve emoji
-- Kısa bir başlık (maksimum 6 kelime)
-- Karakter için kısa bir açıklama (maksimum 12 kelime)
-- Karakterin ses efekti (maksimum 3 kelime)
+    // Retry on rate limit to improve success rate
+    async function delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
-Yanıtını SADECE JSON formatında ver, başka hiçbir şey yazma:
-{
-  "title": "Kitap Başlığı",
-  "pages": [
-    {
-      "character": "Karakter Adı",
-      "emoji": "🐻",
-      "title": "Sayfa Başlığı",
-      "description": "Kısa açıklama",
-      "sound": "Ses efekti"
-    }
-  ]
-}`
-            }]
-          }],
-          generationConfig: {
-            temperature: 1,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json"
-          }
-        }),
+    let response: Response | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Sen çocuklar için hikaye yazan bir yardımcısın. ${theme} temalı, 5 sayfalık bir çocuk hikayesi yaz. Her sayfa için:\n- Karakter adı ve emoji\n- Kısa bir başlık (maksimum 6 kelime)\n- Karakter için kısa bir açıklama (maksimum 12 kelime)\n- Karakterin ses efekti (maksimum 3 kelime)\n\nYanıtını SADECE JSON formatında ver, başka hiçbir şey yazma:\n{\n  "title": "Kitap Başlığı",\n  "pages": [\n    {\n      "character": "Karakter Adı",\n      "emoji": "🐻",\n      "title": "Sayfa Başlığı",\n      "description": "Kısa açıklama",\n      "sound": "Ses efekti"\n    }\n  ]\n}`
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.9,
+              topK: 40,
+              topP: 0.9,
+              maxOutputTokens: 4096,
+              responseMimeType: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (response.ok) break;
+
+      const errTxt = await response.text();
+      console.error(`Gemini API error (attempt ${attempt}):`, response.status, errTxt);
+
+      if (response.status === 429 && attempt < 3) {
+        const retryAfter = Number(response.headers.get("retry-after")) || 6 * attempt;
+        await delay(retryAfter * 1000);
+        continue;
       }
-    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit aşıldı, lütfen daha sonra tekrar deneyin." }),
@@ -78,8 +70,12 @@ Yanıtını SADECE JSON formatında ver, başka hiçbir şey yazma:
       throw new Error(`Gemini API error: ${response.status}`);
     }
 
+
+    if (!response) {
+      throw new Error("Gemini yanıt vermedi");
+    }
+
     const data = await response.json();
-    console.log("Gemini response data:", JSON.stringify(data).substring(0, 200));
     
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
