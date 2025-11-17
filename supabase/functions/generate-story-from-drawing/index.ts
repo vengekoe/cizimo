@@ -1,9 +1,26 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Validate base64 size (5MB limit = ~6.7MB base64)
+const requestSchema = z.object({
+  imageBase64: z.string()
+    .min(1, "Image data cannot be empty")
+    .max(7000000, "Image size must be less than 5MB")
+    .refine((val) => {
+      try {
+        // Validate it's a valid base64 data URL
+        return val.startsWith('data:image/');
+      } catch {
+        return false;
+      }
+    }, "Invalid image format"),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -11,11 +28,11 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64 } = await req.json();
+    const body = await req.json();
+    const { imageBase64 } = requestSchema.parse(body);
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
     if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
-    if (!imageBase64) throw new Error("Image is required");
 
     console.log("Analyzing child's drawing...");
 
@@ -131,12 +148,14 @@ KURALLAR:
 `
           },
         ],
+        max_completion_tokens: 4096,
       }),
     });
 
     if (!storyResponse.ok) {
-      console.error("Story generation failed:", storyResponse.status);
-      throw new Error("Failed to generate story");
+      const errorText = await storyResponse.text();
+      console.error("Story generation failed:", storyResponse.status, errorText);
+      throw new Error(`Failed to generate story: ${storyResponse.status} - ${errorText}`);
     }
 
     const storyData = await storyResponse.json();
@@ -149,23 +168,25 @@ KURALLAR:
 
     return new Response(
       JSON.stringify({
-        ...story,
-        metadata: {
+        story,
+        analysis: {
           colors: analysis.colors,
           theme: analysis.theme,
           mood: analysis.mood,
-          originalCharacters: analysis.characters,
         },
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (e) {
-    console.error("Story generation error:", e);
+  } catch (error) {
+    console.error("Error in generate-story-from-drawing:", error);
+    const isValidationError = error instanceof z.ZodError;
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Bilinmeyen hata" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: isValidationError 
+          ? `Validation error: ${error.errors.map(err => err.message).join(', ')}`
+          : error instanceof Error ? error.message : "Bilinmeyen hata" 
+      }),
+      { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

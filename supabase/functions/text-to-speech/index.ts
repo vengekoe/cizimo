@@ -1,9 +1,14 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const requestSchema = z.object({
+  text: z.string().min(1, "Text cannot be empty").max(1000, "Text must be less than 1000 characters"),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,11 +16,8 @@ serve(async (req) => {
   }
 
   try {
-    const { text } = await req.json()
-
-    if (!text) {
-      throw new Error('Metin gerekli')
-    }
+    const body = await req.json()
+    const { text } = requestSchema.parse(body)
 
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')
     if (!ELEVENLABS_API_KEY) {
@@ -69,10 +71,15 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Text-to-speech hatası:', error)
+    const isValidationError = error instanceof z.ZodError;
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Bilinmeyen hata' }),
+      JSON.stringify({ 
+        error: isValidationError 
+          ? `Validation error: ${error.errors.map(err => err.message).join(', ')}`
+          : error instanceof Error ? error.message : 'Bilinmeyen hata' 
+      }),
       {
-        status: 400,
+        status: isValidationError ? 400 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     )

@@ -1,10 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const requestSchema = z.object({
+  theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -12,7 +17,8 @@ serve(async (req) => {
   }
 
   try {
-    const { theme } = await req.json();
+    const body = await req.json();
+    const { theme } = requestSchema.parse(body);
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
     if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
@@ -107,9 +113,14 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Story generation error:", e);
+    const isValidationError = e instanceof z.ZodError;
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Bilinmeyen hata" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        error: isValidationError 
+          ? `Validation error: ${e.errors.map(err => err.message).join(', ')}`
+          : e instanceof Error ? e.message : "Bilinmeyen hata" 
+      }),
+      { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
