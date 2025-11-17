@@ -21,7 +21,7 @@ const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradie
         <div className={`absolute inset-0 bg-gradient-to-br ${gradientFallback || 'from-primary/20 via-secondary/20 to-accent/20'}`} />
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-book-page/10 to-book-page/30 pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/20 pointer-events-none z-0" />
       
       {/* Animasyonlu öğeler */}
       {animationType && (
@@ -31,7 +31,9 @@ const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradie
       )}
       
       <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8 md:p-16">
-        {children}
+        <div className="bg-background/90 dark:bg-background/80 backdrop-blur-md rounded-3xl p-8 md:p-12 shadow-2xl max-w-4xl">
+          {children}
+        </div>
       </div>
       
       <div className="absolute bottom-8 right-8 text-2xl font-bold text-foreground/60 z-20">
