@@ -7,11 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Validate base64 size (5MB limit = ~6.7MB base64)
+// Validate base64 size (8MB limit = ~10.7MB base64)
 const requestSchema = z.object({
   imageBase64: z.string()
     .min(1, "Image data cannot be empty")
-    .max(7000000, "Image size must be less than 5MB")
+    .max(10700000, "Image size must be less than 8MB")
     .refine((val) => {
       try {
         // Validate it's a valid base64 data URL
