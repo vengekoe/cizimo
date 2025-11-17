@@ -7,7 +7,7 @@ import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
-import { Home } from "lucide-react";
+import { Home, Loader2 } from "lucide-react";
 
 const BookReader = () => {
   const { bookId } = useParams();
@@ -16,6 +16,7 @@ const BookReader = () => {
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
   const [showFeedback, setShowFeedback] = useState(false);
+  const [hydrating, setHydrating] = useState(true);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
@@ -38,7 +39,27 @@ const BookReader = () => {
     }
   }, [searchParams, totalPages]);
 
+  // Allow time for local storage hydration across routes
+  useEffect(() => {
+    if (book) {
+      setHydrating(false);
+      return;
+    }
+    const t = setTimeout(() => setHydrating(false), 700);
+    return () => clearTimeout(t);
+  }, [book]);
+
   if (!book) {
+    if (hydrating) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Yükleniyor...</span>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center space-y-6">
