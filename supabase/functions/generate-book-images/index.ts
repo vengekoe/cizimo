@@ -19,61 +19,71 @@ serve(async (req) => {
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
-    const imagePromises = pages.map(async (page: any, index: number) => {
-      const prompt = `Create a vibrant children's book illustration: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Style: Colorful, friendly, safe for children, high quality digital art, warm and inviting.`;
-      
-      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
+    // Process sequentially with retry to avoid rate limits
+    const images: (string | null)[] = [];
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImages?key=${GOOGLE_AI_API_KEY}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            instances: [{
-              prompt: prompt
-            }],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: "16:9",
-              safetyFilterLevel: "block_most",
-              personGeneration: "allow_adult"
-            }
-          }),
-        }
-      );
+    async function delay(ms: number) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`;
+      const body = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ["IMAGE"],
+        },
+      });
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Image ${index + 1} generation failed:`, response.status, errorText);
-        
-        if (response.status === 429) {
-          throw new Error("Rate limit aşıldı");
+        console.error(`Image generation failed (attempt ${attempt}):`, response.status, errorText);
+
+        if (response.status === 429 && attempt < 3) {
+          // Exponential backoff
+          const retryAfter = Number(response.headers.get("retry-after")) || 8 * attempt;
+          await delay(retryAfter * 1000);
+          return generateImageWithRetry(prompt, attempt + 1);
         }
         if (response.status === 403) {
-          throw new Error("Gemini API anahtarı geçersiz");
+          throw new Error("Gemini API anahtarı geçersiz veya erişim reddedildi");
         }
         return null;
       }
 
       const data = await response.json();
-      const imageBase64 = data.predictions?.[0]?.bytesBase64Encoded;
-      
-      if (!imageBase64) {
-        console.error(`No image data for index ${index}`);
+      // Find first inlineData image
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const inline = parts.find((p: any) => p.inlineData)?.inlineData;
+      const base64 = inline?.data as string | undefined;
+      const mime = inline?.mimeType as string | undefined;
+
+      if (!base64) {
+        console.error("No inline image returned by Gemini for prompt.");
         return null;
       }
 
-      // Gemini base64'ü data URL formatına çevir
-      const dataUrl = `data:image/png;base64,${imageBase64}`;
-      console.log(`Image ${index + 1} generated successfully`);
+      const dataUrl = `data:${mime || "image/png"};base64,${base64}`;
       return dataUrl;
-    });
+    }
 
-    const images = await Promise.all(imagePromises);
-    console.log(`Successfully generated ${images.filter(img => img !== null).length} images`);
+    for (let index = 0; index < pages.length; index++) {
+      const page = pages[index];
+      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
+      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
+      const img = await generateImageWithRetry(prompt);
+      images.push(img);
+      // Small delay between requests to reduce rate limiting
+      await delay(500);
+    }
+
+    console.log(`Successfully generated ${images.filter((img) => img !== null).length} images`);
 
     return new Response(JSON.stringify({ images }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
