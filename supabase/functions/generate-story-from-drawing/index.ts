@@ -209,6 +209,7 @@ KURALLAR:
           ],
           tool_choice: { type: "function", function: { name: "create_story" } },
           max_completion_tokens: 2048,
+          response_format: { type: "json_object" },
         }),
     });
 
@@ -287,13 +288,54 @@ KURALLAR:
     }
 
     if (!story) {
-      console.error(
-        "Story parse failed. Debug -> hasToolCalls:", Boolean(toolCall),
-        "toolArgsType:", typeof toolArgsRaw,
-        "hasFunctionCall:", Boolean(functionCallArgsRaw),
-        "contentLen:", storyRaw?.length ?? 0
-      );
-      throw new Error("Invalid story format from AI response");
+      console.warn("Primary parse failed; retrying with json_object no-tools...");
+      const retryBody = {
+        model: "gpt-5-2025-08-07",
+        messages: [
+          { role: "system", content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Yalnızca geçerli JSON üret." },
+          { role: "user", content: `Aşağıdaki özelliklere dayanarak 10 sayfalık TUTARLI bir çocuk hikayesi üret ve JSON dön:\n\nRenkler: ${analysis.colors.join(", ")}\nTema: ${analysis.theme}\nDuygu: ${analysis.mood}\nKarakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}\n\nFORMAT:\n{\n  \"title\": \"${analysis.title}\",\n  \"pages\": [{\n    \"character\": \"\",\n    \"emoji\": \"\",\n    \"title\": \"\",\n    \"description\": \"\",\n    \"sound\": \"\"\n  }]\n}` }
+        ],
+        max_completion_tokens: 2048,
+        response_format: { type: "json_object" },
+      } as const;
+
+      const retryResp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(retryBody),
+      });
+
+      if (retryResp.ok) {
+        const retryData = await retryResp.json();
+        const retryRaw = retryData.choices?.[0]?.message?.content as string | undefined;
+        if (retryRaw) {
+          try {
+            story = JSON.parse(retryRaw);
+          } catch (e) {
+            const s = retryRaw.indexOf("{");
+            const eidx = retryRaw.lastIndexOf("}");
+            if (s !== -1 && eidx !== -1) {
+              try { story = JSON.parse(retryRaw.slice(s, eidx + 1)); } catch {}
+            }
+          }
+        }
+      } else {
+        const t = await retryResp.text();
+        console.error("Retry story request failed:", retryResp.status, t);
+      }
+
+      if (!story) {
+        console.error(
+          "Story parse failed after retry. Debug -> hasToolCalls:", Boolean(toolCall),
+          "toolArgsType:", typeof toolArgsRaw,
+          "hasFunctionCall:", Boolean(functionCallArgsRaw),
+          "contentLen:", storyRaw?.length ?? 0
+        );
+        throw new Error("Invalid story format from AI response");
+      }
     }
 
     // Minimal schema validation for robustness
