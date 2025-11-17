@@ -44,7 +44,7 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
 
   return (
     <div 
-      className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2`}
+      className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
