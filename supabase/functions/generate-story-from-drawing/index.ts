@@ -140,11 +140,11 @@ JSON formatında dön:
           messages: [
             {
               role: "system",
-              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. YANITINI SADECE 'create_story' adlı aracı çağırarak ver; başka içerik ekleme.",
+              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yalnızca geçerli JSON formatında yanıt ver.",
             },
             {
               role: "user",
-              content: `Aşağıdaki özelliklere dayanarak BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:
+              content: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}
@@ -157,57 +157,22 @@ KURALLAR:
 3) Karakterler tutarlı davransın
 4) Son sayfada pozitif final olsun
 
-ÇIKTI FORMATIN (yalnızca JSON):
+JSON FORMATINDA DÖNÜŞ YAP:
 {
   "title": "${analysis.title}",
   "pages": [
     {
-      "character": "Karakter Adı",
+      "character": "Karakter adı",
       "emoji": "🎨",
-      "title": "Sayfa Başlığı (<= 8 kelime)",
-      "description": "1-2 cümle (<= 25 kelime)",
+      "title": "Sayfa başlığı",
+      "description": "Detaylı açıklama",
       "sound": "Ses efekti"
     }
   ]
-}
-`
-            },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "create_story",
-                description: "10 sayfaya bölünmüş, ardışık ve pozitif finali olan bir çocuk hikayesini döndür.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    pages: {
-                      type: "array",
-                      minItems: 10,
-                      maxItems: 10,
-                      items: {
-                        type: "object",
-                        properties: {
-                          character: { type: "string" },
-                          emoji: { type: "string" },
-                          title: { type: "string", maxLength: 60 },
-                          description: { type: "string", maxLength: 200 },
-                          sound: { type: "string" }
-                        },
-                        required: ["character", "emoji", "title", "description", "sound"],
-                        additionalProperties: false
-                      }
-                    }
-                  },
-                  required: ["title", "pages"],
-                  additionalProperties: false
-                }
-              }
+}`
             }
           ],
-          tool_choice: { type: "function", function: { name: "create_story" } },
+          response_format: { type: "json_object" },
           max_completion_tokens: 2048,
         }),
     });
