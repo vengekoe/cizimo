@@ -12,22 +12,22 @@ serve(async (req) => {
 
   try {
     const { imageBase64 } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
     if (!imageBase64) throw new Error("Image is required");
 
     console.log("Analyzing child's drawing...");
 
     // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
@@ -86,14 +86,14 @@ JSON formatında dön:
     console.log("Analysis complete:", analysis);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-5-2025-08-07",
         messages: [
           {
             role: "system",
