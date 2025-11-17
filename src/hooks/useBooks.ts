@@ -126,15 +126,47 @@ export const useBooks = () => {
     try {
       const bookId = `book-${Date.now()}`;
       
-      // Resmi base64'e çevir
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(imageFile);
-      });
+      // Resmi sıkıştır ve base64'e çevir
+      const compressImage = async (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              
+              // Max 1920px width/height
+              const maxSize = 1920;
+              if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                  height = (height / width) * maxSize;
+                  width = maxSize;
+                } else {
+                  width = (width / height) * maxSize;
+                  height = maxSize;
+                }
+              }
+              
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(img, 0, 0, width, height);
+              
+              // Compress to JPEG with quality 0.8
+              const compressed = canvas.toDataURL('image/jpeg', 0.8);
+              resolve(compressed);
+            };
+            img.onerror = reject;
+            img.src = e.target?.result as string;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      };
 
-      const imageBase64 = await base64Promise;
+      const imageBase64 = await compressImage(imageFile);
       
       // Önce orijinal çizimi storage'a yükle
       setProgress({ stage: 'cover', percentage: 30, message: 'Çizim yükleniyor...' });
@@ -149,6 +181,7 @@ export const useBooks = () => {
       );
 
       if (storyError) {
+        console.error("Story generation error:", storyError);
         // 402 Payment Required hatası için özel mesaj
         if (storyError.message?.includes("402") || storyError.message?.includes("Ödeme gerekli")) {
           throw new Error("PAYMENT_REQUIRED");
@@ -156,6 +189,10 @@ export const useBooks = () => {
         // 429 Rate Limit hatası için özel mesaj
         if (storyError.message?.includes("429") || storyError.message?.includes("Rate limit")) {
           throw new Error("RATE_LIMIT");
+        }
+        // Görsel boyutu hatası için özel mesaj
+        if (storyError.message?.includes("too_big") || storyError.message?.includes("Image size")) {
+          throw new Error("IMAGE_TOO_LARGE");
         }
         throw storyError;
       }
@@ -218,6 +255,12 @@ export const useBooks = () => {
         }
         if (error.message === "RATE_LIMIT") {
           toast.error("Çok fazla istek gönderildi. Lütfen biraz bekleyip tekrar deneyin.", {
+            duration: 6000,
+          });
+          return null;
+        }
+        if (error.message === "IMAGE_TOO_LARGE") {
+          toast.error("Görsel çok büyük. Görsel otomatik olarak sıkıştırıldı ama hala çok büyük. Lütfen daha küçük bir görsel deneyin.", {
             duration: 6000,
           });
           return null;
