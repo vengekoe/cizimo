@@ -13,16 +13,14 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!OPENAI_API_KEY && !GOOGLE_AI_API_KEY) {
-      throw new Error("Ne OPENAI_API_KEY ne de GOOGLE_AI_API_KEY yapılandırılmamış");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
 
-    // Process sequentially with retry to avoid rate limits
     const images: (string | null)[] = [];
 
     async function delay(ms: number) {
@@ -30,71 +28,50 @@ serve(async (req) => {
     }
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
-      // Prefer Gemini if available (kullanıcı isteği), aksi halde OpenAI; başarısız olursa diğerine düş
-      const tryGemini = async (): Promise<{ ok: boolean; dataUrl?: string; retryable?: boolean; unauthorized?: boolean }> => {
-        if (!GOOGLE_AI_API_KEY) return { ok: false };
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`;
-        const body = JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ["IMAGE"] },
-        });
-        const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
-        if (!resp.ok) {
-          const t = await resp.text();
-          console.error(`Gemini image gen failed (attempt ${attempt}):`, resp.status, t);
-          return {
-            ok: false,
-            retryable: resp.status === 429,
-            unauthorized: resp.status === 401 || resp.status === 403,
-          };
+      const url = "https://ai.gateway.lovable.dev/v1/chat/completions";
+      const body = JSON.stringify({
+        model: "google/gemini-2.5-flash-image-preview",
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        modalities: ["image", "text"]
+      });
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Lovable AI image gen failed (attempt ${attempt}):`, response.status, errorText);
+        
+        if (response.status === 429 && attempt < 3) {
+          await delay(8 * attempt * 1000);
+          return generateImageWithRetry(prompt, attempt + 1);
         }
-        const data = await resp.json();
-        const parts = data.candidates?.[0]?.content?.parts || [];
-        const inline = parts.find((p: any) => p.inlineData)?.inlineData;
-        const base64 = inline?.data as string | undefined;
-        const mime = inline?.mimeType as string | undefined;
-        if (!base64) return { ok: false };
-        return { ok: true, dataUrl: `data:${mime || "image/png"};base64,${base64}` };
-      };
-
-      const tryOpenAI = async (): Promise<{ ok: boolean; dataUrl?: string; retryable?: boolean; unauthorized?: boolean }> => {
-        if (!OPENAI_API_KEY) return { ok: false };
-        const url = "https://api.openai.com/v1/images/generations";
-        const body = JSON.stringify({ model: "gpt-image-1", prompt, n: 1, size: "1024x1024" });
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
-          body,
-        });
-        if (!resp.ok) {
-          const t = await resp.text();
-          console.error(`OpenAI image gen failed (attempt ${attempt}):`, resp.status, t);
-          return {
-            ok: false,
-            retryable: resp.status === 429,
-            unauthorized: resp.status === 401 || resp.status === 403,
-          };
+        if (response.status === 402) {
+          throw new Error("Lovable AI kredileriniz tükendi");
         }
-        const data = await resp.json();
-        const b64 = data?.data?.[0]?.b64_json as string | undefined;
-        if (!b64) return { ok: false };
-        return { ok: true, dataUrl: `data:image/png;base64,${b64}` };
-      };
-
-      // Attempt order: Gemini → OpenAI
-      for (let a = attempt; a <= 3; a++) {
-        const g = await tryGemini();
-        if (g.ok) return g.dataUrl!;
-        if (g.retryable && a < 3) { await delay((6 * a) * 1000); continue; }
-
-        const o = await tryOpenAI();
-        if (o.ok) return o.dataUrl!;
-        if ((g.retryable || o.retryable) && a < 3) { await delay((6 * a) * 1000); continue; }
-
-        // If both unauthorized, break early
-        if (g.unauthorized && o.unauthorized) break;
+        return null;
       }
-      return null;
+
+      const data = await response.json();
+      const imageUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url as string | undefined;
+      
+      if (!imageUrl) {
+        console.error("Lovable AI görsel döndürmedi:", JSON.stringify(data).substring(0, 200));
+        return null;
+      }
+
+      return imageUrl;
     }
 
     for (let index = 0; index < pages.length; index++) {
@@ -103,7 +80,6 @@ serve(async (req) => {
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
-      // Small delay between requests to reduce rate limiting
       await delay(500);
     }
 
