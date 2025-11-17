@@ -34,73 +34,57 @@ serve(async (req) => {
     
     if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
-    console.log("Analyzing child's drawing...");
+    console.log("Analyzing child's drawing with OpenAI...");
 
-    // İlk adım: Resmi analiz et (Lovable AI + tool calling ile katı JSON)
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // İlk adım: Resmi analiz et
+    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
-            content:
-              "Sen çocuk çizimlerini anlayan bir yardımcıısın. Sadece araç çağrısı ile yapılandırılmış veriyi döndür.",
+            content: "Sen çocuk çizimlerini anlayan bir yardımcısın. Çizimdeki renkleri, karakterleri, duyguyu ve temayı analiz et ve JSON formatında döndür.",
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text:
-                  "Bu çocuk çizimini analiz et ve renkler(<=3), karakterler(<=4), tema, duygu ve hikaye başlığını çıkar.",
+                text: `Bu çocuk çizimini analiz et ve şunları belirle:
+1. Çizimdeki ana renkler (en fazla 3 renk)
+2. Çizimdeki karakterler veya nesneler (en fazla 4 karakter)
+3. Genel tema ve duygu
+4. Hikaye için uygun başlık
+
+JSON formatında dön:
+{
+  "colors": ["renk1", "renk2", "renk3"],
+  "characters": [
+    {
+      "name": "Karakter adı",
+      "emoji": "🎨",
+      "description": "Karakter açıklaması"
+    }
+  ],
+  "theme": "Genel tema açıklaması",
+  "mood": "Duygu/atmosfer",
+  "title": "Hikaye başlığı"
+}`
               },
-              { type: "image_url", image_url: { url: imageBase64 } },
-            ],
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageBase64
+                }
+              }
+            ]
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "analyze_drawing",
-              description: "Çocuk çiziminden yapılandırılmış analiz sonucu döndür",
-              parameters: {
-                type: "object",
-                properties: {
-                  colors: { type: "array", items: { type: "string" }, maxItems: 3 },
-                  characters: {
-                    type: "array",
-                    maxItems: 4,
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        emoji: { type: "string" },
-                        description: { type: "string" },
-                      },
-                      required: ["name", "emoji", "description"],
-                      additionalProperties: false,
-                    },
-                  },
-                  theme: { type: "string" },
-                  mood: { type: "string" },
-                  title: { type: "string" },
-                },
-                required: ["colors", "characters", "theme", "mood", "title"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "analyze_drawing" } },
       }),
     });
 
@@ -108,12 +92,11 @@ serve(async (req) => {
       const errorText = await analysisResponse.text();
       console.error("Analysis failed:", analysisResponse.status, errorText);
       
-      // Handle specific error codes
       if (analysisResponse.status === 402) {
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin."
+            message: "OpenAI API kredileriniz tükendi."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -123,90 +106,69 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç dakika bekleyin."
+            message: "Çok fazla istek gönderildi."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
-      throw new Error(`Failed to analyze drawing: ${analysisResponse.status} - ${errorText}`);
+      throw new Error(`Failed to analyze drawing: ${analysisResponse.status}`);
     }
 
     const analysisData = await analysisResponse.json();
-    const analysisMsg = analysisData.choices?.[0]?.message;
+    const analysisContent = analysisData.choices[0].message.content;
+    
+    const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Invalid analysis format");
+    
+    const analysis = JSON.parse(jsonMatch[0]);
+    console.log("Analysis complete - Title:", analysis.title);
 
-    let analysis;
-    const toolArgs = analysisMsg?.tool_calls?.[0]?.function?.arguments;
-    if (toolArgs) {
-      analysis = JSON.parse(toolArgs);
-    } else {
-      const analysisContent = analysisMsg?.content || "";
-      const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Invalid analysis format");
-      analysis = JSON.parse(jsonMatch[0]);
-    }
-
-    console.log("Analysis complete (sanitized). Title:", analysis.title);
-
-
-    // İkinci adım: Analiz sonucuna göre hikaye oluştur (Lovable AI + tool calling)
-    const storyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // İkinci adım: Analiz sonucuna göre hikaye oluştur
+    const storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-5-2025-08-07",
         messages: [
           {
             role: "system",
-            content:
-              "Sen çocuklar için yaratıcı hikayeler oluşturan bir yazarsın. Sadece araç çağrısıyla JSON döndür.",
+            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yanıtın yalnızca geçerli JSON olmalıdır.",
           },
           {
             role: "user",
-            content: `Aşağıdaki analizden BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:\n\nRenkler: ${analysis.colors.join(", ")}\nTema: ${analysis.theme}\nDuygu: ${analysis.mood}\nKarakterler: ${analysis.characters
-              .map((c: any) => `${c.name} (${c.description})`)
-              .join(", ")}\n\nKurallar: tek parça bütünlük, 10 ardışık sahne, tutarlılık, pozitif final.`,
+            content: `Aşağıdaki özelliklere dayanarak BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:
+
+Renkler: ${analysis.colors.join(", ")}
+Tema: ${analysis.theme}
+Duygu: ${analysis.mood}
+Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
+
+KURALLAR:
+1) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
+2) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
+3) Karakterler tutarlı davransın
+4) Son sayfada pozitif final olsun
+
+ÇIKTI FORMATIN (yalnızca JSON):
+{
+  "title": "${analysis.title}",
+  "pages": [
+    {
+      "character": "Karakter Adı",
+      "emoji": "🎨",
+      "title": "Sayfa Başlığı (<= 8 kelime)",
+      "description": "1-2 cümle (<= 25 kelime)",
+      "sound": "Ses efekti"
+    }
+  ]
+}
+`
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "build_story",
-              description: "Analize göre hikaye döndür",
-              parameters: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  pages: {
-                    type: "array",
-                    minItems: 10,
-                    maxItems: 10,
-                    items: {
-                      type: "object",
-                      properties: {
-                        character: { type: "string" },
-                        emoji: { type: "string" },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        sound: { type: "string" },
-                      },
-                      required: ["character", "emoji", "title", "description", "sound"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["title", "pages"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "build_story" } },
-        // Yeni modellerde max_completion_tokens kullanılır
         max_completion_tokens: 4096,
       }),
     });
@@ -215,12 +177,11 @@ serve(async (req) => {
       const errorText = await storyResponse.text();
       console.error("Story generation failed:", storyResponse.status, errorText);
       
-      // Handle specific error codes
       if (storyResponse.status === 402) {
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin."
+            message: "OpenAI API kredileriniz tükendi."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -230,41 +191,41 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç dakika bekleyin."
+            message: "Çok fazla istek gönderildi."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
-      throw new Error(`Failed to generate story: ${storyResponse.status} - ${errorText}`);
+      throw new Error(`Failed to generate story: ${storyResponse.status}`);
     }
 
     const storyData = await storyResponse.json();
-    const storyMsg = storyData.choices?.[0]?.message;
-
-    let story;
-    const storyToolArgs = storyMsg?.tool_calls?.[0]?.function?.arguments;
-    if (storyToolArgs) {
-      story = JSON.parse(storyToolArgs);
+    const storyContent = storyData.choices[0].message.content;
+    
+    console.log("Story generated successfully");
+    
+    // Try to extract JSON from markdown code blocks or plain text
+    let jsonStr = storyContent;
+    
+    // Remove markdown code blocks if present
+    const codeBlockMatch = storyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1];
     } else {
-      const storyContent = storyMsg?.content || "";
-      console.log("Story response content:", storyContent);
-      // Try to extract JSON from markdown code blocks or plain text
-      let jsonStr = storyContent;
-      const codeBlockMatch = storyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-      if (codeBlockMatch) {
-        jsonStr = codeBlockMatch[1];
-      } else {
-        const jsonMatch = storyContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) jsonStr = jsonMatch[0];
+      // Try to find JSON object in the text
+      const jsonMatch = storyContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[0];
       }
-      try {
-        story = JSON.parse(jsonStr);
-      } catch (parseError) {
-        console.error("Failed to parse story JSON:", parseError);
-        console.error("Attempted to parse:", jsonStr);
-        throw new Error("Invalid story format from AI response");
-      }
+    }
+    
+    let story;
+    try {
+      story = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error("Failed to parse story JSON:", parseError);
+      throw new Error("Invalid story format from AI response");
     }
 
     return new Response(
