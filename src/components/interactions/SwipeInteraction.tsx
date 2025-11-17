@@ -39,7 +39,7 @@ const SwipeInteraction = ({ emoji, sound, label, position = "bottom" }: SwipeInt
   };
 
   return (
-    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2`}>
+    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}>
       <div
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

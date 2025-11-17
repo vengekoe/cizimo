@@ -28,7 +28,7 @@ const ClickInteraction = ({ emoji, sound, label, position = "bottom" }: ClickInt
   };
 
   return (
-    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2`}>
+    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}>
       <Button
         onClick={handleClick}
         size="lg"

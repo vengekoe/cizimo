@@ -49,7 +49,7 @@ const ShakeInteraction = ({ emoji, sound, label, position = "bottom" }: ShakeInt
   };
 
   return (
-    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2`}>
+    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}>
       <div
         className={`text-4xl md:text-6xl px-8 py-6 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl transition-all duration-300 ${
           isShaking ? "animate-wiggle scale-110" : ""
