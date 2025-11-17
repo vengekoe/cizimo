@@ -161,10 +161,31 @@ KURALLAR:
     const storyData = await storyResponse.json();
     const storyContent = storyData.choices[0].message.content;
     
-    const storyJsonMatch = storyContent.match(/\{[\s\S]*\}/);
-    if (!storyJsonMatch) throw new Error("Invalid story format");
+    console.log("Story response content:", storyContent);
     
-    const story = JSON.parse(storyJsonMatch[0]);
+    // Try to extract JSON from markdown code blocks or plain text
+    let jsonStr = storyContent;
+    
+    // Remove markdown code blocks if present
+    const codeBlockMatch = storyContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1];
+    } else {
+      // Try to find JSON object in the text
+      const jsonMatch = storyContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[0];
+      }
+    }
+    
+    let story;
+    try {
+      story = JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error("Failed to parse story JSON:", parseError);
+      console.error("Attempted to parse:", jsonStr);
+      throw new Error("Invalid story format from AI response");
+    }
 
     return new Response(
       JSON.stringify({
