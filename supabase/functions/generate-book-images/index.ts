@@ -13,10 +13,10 @@ serve(async (req) => {
 
   try {
     const { pages, theme } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY yapılandırılmamış");
     }
 
     console.log(`Generating ${pages.length} images for theme: ${theme}`);
@@ -28,50 +28,48 @@ serve(async (req) => {
     }
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
-      const url = "https://ai.gateway.lovable.dev/v1/chat/completions";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GOOGLE_AI_API_KEY}`;
       const body = JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        modalities: ["image", "text"]
+        contents: [{
+          role: "user",
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseModalities: ["IMAGE"]
+        }
       });
 
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
         },
         body,
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Lovable AI image gen failed (attempt ${attempt}):`, response.status, errorText);
+        console.error(`Gemini image gen failed (attempt ${attempt}):`, response.status, errorText);
         
         if (response.status === 429 && attempt < 3) {
           await delay(8 * attempt * 1000);
           return generateImageWithRetry(prompt, attempt + 1);
         }
-        if (response.status === 402) {
-          throw new Error("Lovable AI kredileriniz tükendi");
-        }
         return null;
       }
 
       const data = await response.json();
-      const imageUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url as string | undefined;
+      const parts = data?.candidates?.[0]?.content?.parts || [];
+      const inline = parts.find((p: any) => p.inlineData)?.inlineData;
+      const base64 = inline?.data as string | undefined;
+      const mime = inline?.mimeType as string | undefined;
       
-      if (!imageUrl) {
-        console.error("Lovable AI görsel döndürmedi:", JSON.stringify(data).substring(0, 200));
+      if (!base64) {
+        console.error("Gemini görsel döndürmedi:", JSON.stringify(data).substring(0, 200));
         return null;
       }
 
-      return imageUrl;
+      return `data:${mime || "image/png"};base64,${base64}`;
     }
 
     for (let index = 0; index < pages.length; index++) {
