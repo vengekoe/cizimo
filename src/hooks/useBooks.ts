@@ -182,18 +182,27 @@ export const useBooks = () => {
 
       if (storyError) {
         console.error("Story generation error:", storyError);
-        // 402 Payment Required hatası için özel mesaj
-        if (storyError.message?.includes("402") || storyError.message?.includes("Ödeme gerekli")) {
+        
+        // Check error response for structured errors
+        const errorData = storyError.context?.body;
+        if (errorData?.error === "PAYMENT_REQUIRED") {
           throw new Error("PAYMENT_REQUIRED");
         }
-        // 429 Rate Limit hatası için özel mesaj
-        if (storyError.message?.includes("429") || storyError.message?.includes("Rate limit")) {
+        if (errorData?.error === "RATE_LIMIT") {
           throw new Error("RATE_LIMIT");
         }
-        // Görsel boyutu hatası için özel mesaj
-        if (storyError.message?.includes("too_big") || storyError.message?.includes("Image size")) {
+        
+        // Fallback to checking error message
+        if (storyError.message?.includes("402") || storyError.message?.includes("PAYMENT_REQUIRED")) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
+        if (storyError.message?.includes("429") || storyError.message?.includes("RATE_LIMIT")) {
+          throw new Error("RATE_LIMIT");
+        }
+        if (storyError.message?.includes("too_big") || storyError.message?.includes("IMAGE_TOO_LARGE")) {
           throw new Error("IMAGE_TOO_LARGE");
         }
+        
         throw storyError;
       }
 

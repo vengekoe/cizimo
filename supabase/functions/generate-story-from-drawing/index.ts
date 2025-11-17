@@ -107,6 +107,28 @@ serve(async (req) => {
     if (!analysisResponse.ok) {
       const errorText = await analysisResponse.text();
       console.error("Analysis failed:", analysisResponse.status, errorText);
+      
+      // Handle specific error codes
+      if (analysisResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: "PAYMENT_REQUIRED",
+            message: "Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin."
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (analysisResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: "RATE_LIMIT",
+            message: "Çok fazla istek gönderildi. Lütfen birkaç dakika bekleyin."
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       throw new Error(`Failed to analyze drawing: ${analysisResponse.status} - ${errorText}`);
     }
 
@@ -192,6 +214,28 @@ serve(async (req) => {
     if (!storyResponse.ok) {
       const errorText = await storyResponse.text();
       console.error("Story generation failed:", storyResponse.status, errorText);
+      
+      // Handle specific error codes
+      if (storyResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: "PAYMENT_REQUIRED",
+            message: "Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin."
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (storyResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: "RATE_LIMIT",
+            message: "Çok fazla istek gönderildi. Lütfen birkaç dakika bekleyin."
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       throw new Error(`Failed to generate story: ${storyResponse.status} - ${errorText}`);
     }
 
