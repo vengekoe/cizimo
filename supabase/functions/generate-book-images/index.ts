@@ -33,7 +33,6 @@ serve(async (req) => {
         prompt,
         n: 1,
         size: "1024x1024",
-        response_format: "b64_json",
       });
 
       const response = await fetch(url, {
@@ -60,9 +59,10 @@ serve(async (req) => {
       }
 
       const data = await response.json();
+      // gpt-image-1 always returns base64 in b64_json field
       const b64 = data?.data?.[0]?.b64_json as string | undefined;
       if (!b64) {
-        console.error("OpenAI 'b64_json' döndürmedi");
+        console.error("OpenAI 'b64_json' döndürmedi:", JSON.stringify(data).substring(0, 200));
         return null;
       }
       return `data:image/png;base64,${b64}`;
