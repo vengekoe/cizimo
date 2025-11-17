@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
-import InteractiveElement from "@/components/InteractiveElement";
+import ClickInteraction from "@/components/interactions/ClickInteraction";
+import DragInteraction from "@/components/interactions/DragInteraction";
+import SwipeInteraction from "@/components/interactions/SwipeInteraction";
 import PageNavigation from "@/components/PageNavigation";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import bearPageImage from "@/assets/bear-page.jpg";
@@ -66,7 +68,7 @@ const Index = () => {
           Ormanda yaşıyorum ve yeni arkadaşlar arıyorum!
         </p>
       </div>
-      <InteractiveElement emoji="🐻" sound="Hav hav!" label="Tıkla benimle konuş!" />
+      <ClickInteraction emoji="🐻" sound="Hav hav!" label="Tıkla benimle konuş!" />
     </BookPage>,
 
     // Sayfa 2: Tavşan
@@ -79,7 +81,7 @@ const Index = () => {
           Çayırlarda hoplayıp zıplamayı çok severim!
         </p>
       </div>
-      <InteractiveElement emoji="🐰" sound="Hop hop!" label="Benimle zıpla!" />
+      <DragInteraction emoji="🐰" sound="Hop hop!" label="Sürükle beni!" />
     </BookPage>,
 
     // Sayfa 3: Baykuş
@@ -92,7 +94,7 @@ const Index = () => {
           Geceleri yıldızları izlemeyi seviyorum!
         </p>
       </div>
-      <InteractiveElement emoji="🦉" sound="Huu huu!" label="Benimle şarkı söyle!" />
+      <SwipeInteraction emoji="🦉" sound="Huu huu!" label="Kaydır beni!" />
     </BookPage>,
 
     // Sayfa 4: Hepsi birlikte

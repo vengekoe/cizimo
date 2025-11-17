@@ -2,7 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
-import InteractiveElement from "@/components/InteractiveElement";
+import ClickInteraction from "@/components/interactions/ClickInteraction";
+import DragInteraction from "@/components/interactions/DragInteraction";
+import SwipeInteraction from "@/components/interactions/SwipeInteraction";
+import ShakeInteraction from "@/components/interactions/ShakeInteraction";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
@@ -123,6 +126,18 @@ const BookReader = () => {
   const animationTypes = ["butterfly", "butterfly", "stars", "celebration"] as const;
   const animation = animationTypes[currentPage % animationTypes.length];
   
+  // Her sayfa için farklı interaksiyon tipi belirle
+  const interactionTypes = ["click", "drag", "swipe", "shake", "click"] as const;
+  const interactionType = interactionTypes[currentPage % interactionTypes.length];
+  
+  // Interaksiyon etiketleri
+  const interactionLabels = {
+    click: "Tıkla benimle konuş!",
+    drag: "Sürükle beni!",
+    swipe: "Kaydır beni!",
+    shake: "Cihazını salla!"
+  };
+  
   // Görsel yoksa gradient arka plan kullan
   const gradientBackgrounds = [
     "from-blue-400/20 via-purple-400/20 to-pink-400/20",
@@ -131,6 +146,28 @@ const BookReader = () => {
     "from-yellow-400/20 via-orange-400/20 to-red-400/20",
   ];
   const gradientBg = gradientBackgrounds[currentPage % gradientBackgrounds.length];
+
+  // Interaksiyon componentini seç
+  const renderInteraction = () => {
+    const props = {
+      emoji: page.emoji,
+      sound: page.sound,
+      label: interactionLabels[interactionType]
+    };
+
+    switch (interactionType) {
+      case "click":
+        return <ClickInteraction {...props} />;
+      case "drag":
+        return <DragInteraction {...props} />;
+      case "swipe":
+        return <SwipeInteraction {...props} />;
+      case "shake":
+        return <ShakeInteraction {...props} />;
+      default:
+        return <ClickInteraction {...props} />;
+    }
+  };
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -155,11 +192,7 @@ const BookReader = () => {
               {page.description}
             </p>
           </div>
-          <InteractiveElement
-            emoji={page.emoji}
-            sound={page.sound}
-            label={`Tıkla benimle konuş!`}
-          />
+          {renderInteraction()}
         </BookPage>
       </div>
 
