@@ -135,16 +135,16 @@ JSON formatında dön:
         Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
-        messages: [
-          {
-            role: "system",
-            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yanıtın yalnızca geçerli JSON olmalıdır.",
-          },
-          {
-            role: "user",
-            content: `Aşağıdaki özelliklere dayanarak BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:
+        body: JSON.stringify({
+          model: "gpt-5-2025-08-07",
+          messages: [
+            {
+              role: "system",
+              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yanıtın yalnızca geçerli JSON olmalıdır.",
+            },
+            {
+              role: "user",
+              content: `Aşağıdaki özelliklere dayanarak BAŞTAN SONA TUTARLI bir çocuk hikayesi üret ve 10 sayfaya böl:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}
@@ -171,11 +171,46 @@ KURALLAR:
   ]
 }
 `
-          },
-        ],
-        max_completion_tokens: 4096,
-        response_format: { type: "json_object" },
-      }),
+            },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "create_story",
+                description: "10 sayfaya bölünmüş, ardışık ve pozitif finali olan bir çocuk hikayesini döndür.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    pages: {
+                      type: "array",
+                      minItems: 10,
+                      maxItems: 10,
+                      items: {
+                        type: "object",
+                        properties: {
+                          character: { type: "string" },
+                          emoji: { type: "string" },
+                          title: { type: "string", maxLength: 60 },
+                          description: { type: "string", maxLength: 200 },
+                          sound: { type: "string" }
+                        },
+                        required: ["character", "emoji", "title", "description", "sound"],
+                        additionalProperties: false
+                      }
+                    }
+                  },
+                  required: ["title", "pages"],
+                  additionalProperties: false
+                }
+              }
+            }
+          ],
+          tool_choice: { type: "function", function: { name: "create_story" } },
+          max_completion_tokens: 1024,
+          response_format: { type: "json_object" },
+        }),
     });
 
     if (!storyResponse.ok) {
@@ -206,32 +241,45 @@ KURALLAR:
     }
 
     const storyData = await storyResponse.json();
-    const storyRaw = storyData.choices?.[0]?.message?.content;
+    // Prefer tool_call function arguments when available (more reliable for structured output)
+    const choice = storyData.choices?.[0]?.message ?? {};
+    const toolArgs = choice?.tool_calls?.[0]?.function?.arguments as string | undefined;
+    const storyRaw = choice?.content as string | undefined;
 
     console.log("Story generated successfully");
 
-    // Parse JSON strictly; response_format=json_object should ensure validity
     let story: any;
-    try {
-      story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
-    } catch (err) {
-      console.error("Primary story JSON parse failed, attempting brace-slice:", err);
-      if (typeof storyRaw === "string") {
-        const start = storyRaw.indexOf("{");
-        const end = storyRaw.lastIndexOf("}");
-        if (start !== -1 && end !== -1) {
-          try {
-            story = JSON.parse(storyRaw.slice(start, end + 1));
-          } catch (e2) {
-            console.error("Brace-slice parse failed:", e2);
-            throw new Error("Invalid story format from AI response");
-          }
-        } else {
-          throw new Error("Invalid story format from AI response");
-        }
-      } else {
-        throw new Error("Invalid story format from AI response");
+    // 1) Try tool call arguments JSON
+    if (toolArgs && typeof toolArgs === "string") {
+      try {
+        story = JSON.parse(toolArgs);
+      } catch (e) {
+        console.warn("Failed to parse tool_call arguments JSON:", e);
       }
+    }
+    // 2) Try direct content JSON
+    if (!story) {
+      try {
+        story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
+      } catch (err) {
+        console.error("Primary story JSON parse failed, attempting brace-slice:", err);
+        if (typeof storyRaw === "string") {
+          const start = storyRaw.indexOf("{");
+          const end = storyRaw.lastIndexOf("}");
+          if (start !== -1 && end !== -1) {
+            try {
+              story = JSON.parse(storyRaw.slice(start, end + 1));
+            } catch (e2) {
+              console.error("Brace-slice parse failed:", e2);
+            }
+          }
+        }
+      }
+    }
+
+    if (!story) {
+      console.error("Story parse failed. Debug lengths -> toolArgs:", toolArgs?.length ?? 0, "content:", storyRaw?.length ?? 0);
+      throw new Error("Invalid story format from AI response");
     }
 
     // Minimal schema validation for robustness
