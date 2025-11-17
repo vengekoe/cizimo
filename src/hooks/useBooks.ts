@@ -10,7 +10,14 @@ export interface GenerationProgress {
 }
 
 export const useBooks = () => {
-  const [books, setBooks] = useState<Book[]>(defaultBooks);
+  const [books, setBooks] = useState<Book[]>(() => {
+    try {
+      const saved = localStorage.getItem("storybooks");
+      return saved ? JSON.parse(saved) : defaultBooks;
+    } catch {
+      return defaultBooks;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<GenerationProgress>({ 
     stage: null, 
