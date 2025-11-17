@@ -74,7 +74,7 @@ serve(async (req) => {
 
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
-      const prompt = `Create a vibrant children's book background illustration for ages 3-7. Theme: ${theme}. Scene with ${page.character} ${page.emoji}. NO TEXT, NO WORDS, NO LETTERS - pure illustration only. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting, background scene without any written text.`;
+      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
