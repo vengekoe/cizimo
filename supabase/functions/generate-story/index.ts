@@ -9,6 +9,8 @@ const corsHeaders = {
 
 const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
+  language: z.enum(["tr", "en"]).default("tr"),
+  pageCount: z.number().min(5).max(20).default(10),
 });
 
 const storySchema = z.object({
@@ -19,7 +21,7 @@ const storySchema = z.object({
     title: z.string().min(1),
     description: z.string().min(1),
     sound: z.string().min(1),
-  })).length(10),
+  })).min(5).max(20),
 });
 
 serve(async (req) => {
@@ -29,7 +31,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { theme } = requestSchema.parse(body);
+    const { theme, language, pageCount } = requestSchema.parse(body);
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
     if (!GOOGLE_AI_API_KEY) {
@@ -46,29 +48,31 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `"${theme}" temalı 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+            text: `"${theme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
 KURALLAR:
-1) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
-2) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
-3) Karakterler tutarlı davransın
-4) Son sayfada pozitif final olsun
+1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
+2) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
+3) Sonra bu hikayeyi ${pageCount} ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
+4) Karakterler tutarlı davransın ve her sayfada gelişsinler
+5) Son sayfada pozitif, mutlu bir final olsun
+6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
 
-JSON FORMATINDA DÖNÜŞ YAP:
+JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "English"}):
 {
-  "title": "Hikaye Başlığı",
+  "title": "${language === "tr" ? "Hikaye Başlığı (Türkçe)" : "Story Title (English)"}",
   "pages": [
     {
-      "character": "Karakter adı",
+      "character": "${language === "tr" ? "Karakter adı (Türkçe)" : "Character name (English)"}",
       "emoji": "🎨",
-      "title": "Sayfa başlığı",
-      "description": "Detaylı açıklama (en az 3 cümle, hikayenin devamı)",
-      "sound": "Ses efekti"
+      "title": "${language === "tr" ? "Sayfa başlığı (Türkçe)" : "Page title (English)"}",
+      "description": "${language === "tr" ? "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)" : "Detailed description (English, at least 3 sentences, continuation of story)"}",
+      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}"
     }
   ]
 }
 
-Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
+Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!`
           }]
         }],
         generationConfig: {

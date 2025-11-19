@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Sparkles, Paintbrush, Trash2, Star, Clock, LogOut } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import rainbowForestCover from "@/assets/rainbow-forest-cover.jpg";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
@@ -42,6 +44,8 @@ const Home = () => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
+  const [language, setLanguage] = useState<"tr" | "en">("tr");
+  const [pageCount, setPageCount] = useState<number>(10);
 
   // Kullanıcı giriş yapmamışsa auth sayfasına yönlendir
   useEffect(() => {
@@ -87,7 +91,7 @@ const Home = () => {
   }, []);
 
   const handleGenerateBook = async (theme: string) => {
-    const book = await generateBook(theme);
+    const book = await generateBook(theme, language, pageCount);
     if (book) {
       toast.success("Yeni kitap hazır! Şimdi okuyabilirsiniz.");
       // Kitabı otomatik olarak aç
@@ -120,7 +124,7 @@ const Home = () => {
       toast.error("Lütfen bir çizim yükleyin");
       return;
     }
-    const book = await generateBookFromDrawing(selectedImage);
+    const book = await generateBookFromDrawing(selectedImage, language, pageCount);
     if (book) {
       setSelectedImage(null);
       setPreviewUrl("");
@@ -273,6 +277,36 @@ const Home = () => {
           <p className="text-muted-foreground mb-6">
             Çocuğunun çizdiği resmi yükle, yapay zeka o renkler ve temalarla benzersiz bir hikaye yaratsın!
           </p>
+
+          {/* Hikaye Ayarları */}
+          <div className="grid grid-cols-2 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+            <div className="space-y-2">
+              <Label htmlFor="drawing-language">Hikaye Dili</Label>
+              <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
+                <SelectTrigger id="drawing-language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
+                  <SelectItem value="en">🇬🇧 English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="drawing-pages">Sayfa Sayısı</Label>
+              <Select value={pageCount.toString()} onValueChange={(value) => setPageCount(parseInt(value))}>
+                <SelectTrigger id="drawing-pages">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 Sayfa</SelectItem>
+                  <SelectItem value="10">10 Sayfa</SelectItem>
+                  <SelectItem value="15">15 Sayfa</SelectItem>
+                  <SelectItem value="20">20 Sayfa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -347,6 +381,36 @@ const Home = () => {
             <Sparkles className="w-8 h-8 text-primary" />
             Temadan Hikaye Oluştur
           </h2>
+
+          {/* Hikaye Ayarları */}
+          <div className="grid grid-cols-2 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+            <div className="space-y-2">
+              <Label htmlFor="theme-language">Hikaye Dili</Label>
+              <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
+                <SelectTrigger id="theme-language">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
+                  <SelectItem value="en">🇬🇧 English</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="theme-pages">Sayfa Sayısı</Label>
+              <Select value={pageCount.toString()} onValueChange={(value) => setPageCount(parseInt(value))}>
+                <SelectTrigger id="theme-pages">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 Sayfa</SelectItem>
+                  <SelectItem value="10">10 Sayfa</SelectItem>
+                  <SelectItem value="15">15 Sayfa</SelectItem>
+                  <SelectItem value="20">20 Sayfa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <div className="mb-8">
             <h3 className="text-xl font-semibold mb-4">Önerilen Temalar</h3>

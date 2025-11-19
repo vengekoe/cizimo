@@ -19,6 +19,8 @@ const requestSchema = z.object({
         return false;
       }
     }, "Invalid image format"),
+  language: z.enum(["tr", "en"]).default("tr"),
+  pageCount: z.number().min(5).max(20).default(10),
 });
 
 const storyPageSchema = z.object({
@@ -31,7 +33,7 @@ const storyPageSchema = z.object({
 
 const storySchema = z.object({
   title: z.string(),
-  pages: z.array(storyPageSchema).length(10),
+  pages: z.array(storyPageSchema).min(5).max(20),
 });
 
 serve(async (req) => {
@@ -41,7 +43,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64 } = requestSchema.parse(body);
+    const { imageBase64, language, pageCount } = requestSchema.parse(body);
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
     if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
@@ -134,38 +136,40 @@ JSON formatında dön:
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur.
+            text: `Aşağıdaki özelliklere dayanarak ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur.
 
 HİKAYE ÖZELLİKLERİ:
 - Renkler: ${analysis.colors.join(", ")}
 - Tema: ${analysis.theme}
 - Duygu: ${analysis.mood}
 - Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
+- Dil: ${language === "tr" ? "TÜRKÇE" : "ENGLISH"}
 
 ÖNEMLİ KURALLAR:
-1) HİKAYE TAMAMEN TÜRKÇE OLMALIDIR
+1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
 2) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
-3) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
+3) Sonra bu hikayeyi ${pageCount} ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
 4) Karakterler tutarlı davransın ve her sayfada gelişsinler
 5) Son sayfada pozitif, mutlu bir final olsun
 6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
 7) Sayfa başlıkları ve açıklamaları yaratıcı ve ilgi çekici olmalı
 
-JSON FORMATINDA DÖNÜŞ YAP (tüm içerik Türkçe):
+JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "English"}):
 {
   "title": "${analysis.title}",
   "pages": [
     {
-      "character": "Karakter adı (Türkçe)",
+      "character": "${language === "tr" ? "Karakter adı (Türkçe)" : "Character name (English)"}",
       "emoji": "🎨",
-      "title": "Sayfa başlığı (Türkçe)",
-      "description": "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)",
-      "sound": "Ses efekti (Türkçe)"
+      "title": "${language === "tr" ? "Sayfa başlığı (Türkçe)" : "Page title (English)"}",
+      "description": "${language === "tr" ? "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)" : "Detailed description (English, at least 3 sentences, continuation of the story)"}",
+      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}"
     }
   ]
 }
 
-UNUTMA: Tüm metin içeriği (başlık, karakter adları, açıklamalar, sesler) TAMAMEN TÜRKÇE olmalıdır!`
+UNUTMA: Tüm metin içeriği (başlık, karakter adları, açıklamalar, sesler) TAMAMEN ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!
+Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
           }]
         }],
         generationConfig: {
