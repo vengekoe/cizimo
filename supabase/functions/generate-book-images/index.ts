@@ -25,7 +25,10 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
+    console.log("Request received, parsing...");
     const { pages, theme } = requestSchema.parse(body);
+    console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
+    
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
     if (!GOOGLE_AI_API_KEY) {
@@ -65,9 +68,12 @@ serve(async (req) => {
         console.error(`Gemini image gen failed (attempt ${attempt}):`, response.status, errorText);
         
         if (response.status === 429 && attempt < 3) {
+          console.log(`Rate limited, waiting ${8 * attempt} seconds...`);
           await delay(8 * attempt * 1000);
           return generateImageWithRetry(prompt, attempt + 1);
         }
+        
+        console.error(`Failed after ${attempt} attempts, returning null`);
         return null;
       }
 
@@ -87,8 +93,12 @@ serve(async (req) => {
 
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
-      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${page.description}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
-      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 50)}...`);
+      // Limit description to 150 chars for prompt
+      const shortDesc = page.description.length > 150 
+        ? page.description.substring(0, 150) + "..." 
+        : page.description;
+      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
+      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 80)}...`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
       await delay(500);
