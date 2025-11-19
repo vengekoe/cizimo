@@ -10,7 +10,6 @@ const corsHeaders = {
 const pageSchema = z.object({
   character: z.string().max(100),
   emoji: z.string().max(10),
-  title: z.string().max(200),
   description: z.string().max(500),
 });
 
@@ -98,7 +97,7 @@ serve(async (req) => {
       const shortDesc = page.description.length > 150 
         ? page.description.substring(0, 150) + "..." 
         : page.description;
-      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting. IMPORTANT: Include the text "${page.title}" prominently at the top of the image in large, clear, child-friendly letters. Make sure the text is easy to read and visually appealing.`;
+      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 80)}...`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
