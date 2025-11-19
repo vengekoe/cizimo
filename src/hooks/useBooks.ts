@@ -405,9 +405,15 @@ export const useBooks = () => {
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
+      // Background fotoğraflarının tamamının oluşturulduğunu kontrol et
+      const missingImages = uploadedUrls.filter(url => !url).length;
+      if (missingImages > 0) {
+        throw new Error("MISSING_BACKGROUNDS");
+      }
+
       const pages = storyData.story.pages.map((page: any, index: number) => ({
         ...page,
-        backgroundImage: uploadedUrls[index] || undefined,
+        backgroundImage: uploadedUrls[index],
       }));
 
       const newBook: Book = {
@@ -445,6 +451,12 @@ export const useBooks = () => {
         }
         if (error.message === "IMAGE_TOO_LARGE") {
           toast.error("Görsel çok büyük. Görsel otomatik olarak sıkıştırıldı ama hala çok büyük. Lütfen daha küçük bir görsel deneyin.", {
+            duration: 6000,
+          });
+          return null;
+        }
+        if (error.message === "MISSING_BACKGROUNDS") {
+          toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
             duration: 6000,
           });
           return null;
@@ -530,9 +542,15 @@ export const useBooks = () => {
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
+      // Background fotoğraflarının tamamının oluşturulduğunu kontrol et
+      const missingImages = uploadedUrls.filter(url => !url).length;
+      if (missingImages > 0) {
+        throw new Error("MISSING_BACKGROUNDS");
+      }
+
       const pages = storyData.story.pages.map((page: any, index: number) => ({
         ...page,
-        backgroundImage: uploadedUrls[index] || undefined,
+        backgroundImage: uploadedUrls[index],
       }));
 
       const newBook: Book = {
@@ -563,6 +581,12 @@ export const useBooks = () => {
         }
         if (error.message === "RATE_LIMIT") {
           toast.error("Çok fazla istek gönderildi. Lütfen biraz bekleyip tekrar deneyin.", {
+            duration: 6000,
+          });
+          return null;
+        }
+        if (error.message === "MISSING_BACKGROUNDS") {
+          toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
             duration: 6000,
           });
           return null;
