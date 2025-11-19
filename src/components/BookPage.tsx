@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import AnimatedElements from "./AnimatedElements";
+import InteractiveAnimals from "./InteractiveAnimals";
 
 interface BookPageProps {
   children: ReactNode;
@@ -29,6 +30,9 @@ const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradie
           <AnimatedElements type={animationType} />
         </div>
       )}
+      
+      {/* İnteraktif hayvanlar */}
+      <InteractiveAnimals pageNumber={pageNumber} />
       
       <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8 md:p-16">
         {children}
