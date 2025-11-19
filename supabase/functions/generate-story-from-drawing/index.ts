@@ -14,12 +14,24 @@ const requestSchema = z.object({
     .max(10700000, "Image size must be less than 8MB")
     .refine((val) => {
       try {
-        // Validate it's a valid base64 data URL
         return val.startsWith('data:image/');
       } catch {
         return false;
       }
     }, "Invalid image format"),
+});
+
+const storyPageSchema = z.object({
+  character: z.string(),
+  emoji: z.string(),
+  title: z.string(),
+  description: z.string(),
+  sound: z.string(),
+});
+
+const storySchema = z.object({
+  title: z.string(),
+  pages: z.array(storyPageSchema).length(10),
 });
 
 serve(async (req) => {
@@ -30,21 +42,21 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { imageBase64 } = requestSchema.parse(body);
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    console.log("Analyzing child's drawing with OpenAI...");
+    console.log("Analyzing child's drawing with Gemini...");
 
     // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-2025-04-14",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",
@@ -97,7 +109,7 @@ JSON formatında dön:
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "OpenAI API kredileriniz tükendi."
+            message: "Lovable AI kredileriniz tükendi. Lütfen Settings -> Workspace -> Usage bölümünden kredi ekleyin."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -107,7 +119,7 @@ JSON formatında dön:
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi."
+            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyip tekrar deneyin."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -129,14 +141,14 @@ JSON formatında dön:
     console.log("Analysis complete - Title:", analysis.title);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const storyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-        body: JSON.stringify({
-          model: "gpt-5-2025-08-07",
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
           messages: [
             {
               role: "system",
@@ -165,16 +177,18 @@ JSON FORMATINDA DÖNÜŞ YAP:
       "character": "Karakter adı",
       "emoji": "🎨",
       "title": "Sayfa başlığı",
-      "description": "Detaylı açıklama",
+      "description": "Detaylı açıklama (en az 3 cümle, hikayenin devamı)",
       "sound": "Ses efekti"
     }
   ]
-}`
-            }
-          ],
-          response_format: { type: "json_object" },
-          max_completion_tokens: 2048,
-        }),
+}
+
+Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 2048,
+      }),
     });
 
     if (!storyResponse.ok) {
@@ -185,7 +199,7 @@ JSON FORMATINDA DÖNÜŞ YAP:
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "OpenAI API kredileriniz tükendi."
+            message: "Lovable AI kredileriniz tükendi. Lütfen Settings -> Workspace -> Usage bölümünden kredi ekleyin."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -195,7 +209,7 @@ JSON FORMATINDA DÖNÜŞ YAP:
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi."
+            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyip tekrar deneyin."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -205,30 +219,14 @@ JSON FORMATINDA DÖNÜŞ YAP:
     }
 
     const storyData = await storyResponse.json();
-    const choice = storyData.choices?.[0] ?? {};
-    const message = choice.message ?? {};
-    const toolCall = message?.tool_calls?.[0];
-    const toolArgsRaw = toolCall?.function?.arguments;
-    const functionCallArgsRaw = message?.function_call?.arguments;
-    const storyRaw = message?.content as string | undefined;
+    const storyRaw = storyData.choices?.[0]?.message?.content;
 
     console.log("Story generated successfully");
 
-    const tryParse = (val: unknown) => {
-      if (!val) return undefined as any;
-      if (typeof val === "string") {
-        try { return JSON.parse(val); } catch { return undefined as any; }
-      }
-      if (typeof val === "object") return val as any;
-      return undefined as any;
-    };
-
-    let story: any =
-      tryParse(toolArgsRaw) ??
-      tryParse(functionCallArgsRaw) ??
-      tryParse(storyRaw);
-
-    if (!story && typeof storyRaw === "string") {
+    let story: any;
+    try {
+      story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
+    } catch {
       console.error("Primary story JSON parse failed, attempting brace-slice");
       const start = storyRaw.indexOf("{");
       const end = storyRaw.lastIndexOf("}");
@@ -241,48 +239,30 @@ JSON FORMATINDA DÖNÜŞ YAP:
       }
     }
 
-    if (!story && typeof toolArgsRaw === "string") {
-      const start = toolArgsRaw.indexOf("{");
-      const end = toolArgsRaw.lastIndexOf("}");
-      if (start !== -1 && end !== -1) {
-        try {
-          story = JSON.parse(toolArgsRaw.slice(start, end + 1));
-        } catch { /* ignore */ }
-      }
-    }
-
     if (!story) {
-      console.error(
-        "Story parse failed. Debug -> hasToolCalls:", Boolean(toolCall),
-        "toolArgsType:", typeof toolArgsRaw,
-        "hasFunctionCall:", Boolean(functionCallArgsRaw),
-        "contentLen:", storyRaw?.length ?? 0
-      );
+      console.error("Story parse failed. Debug -> contentLen:", storyRaw?.length ?? 0);
       throw new Error("Invalid story format from AI response");
     }
 
-    // Minimal schema validation for robustness
+    // Validate story structure
+    const storyPageSchema = z.object({
+      character: z.string(),
+      emoji: z.string(),
+      title: z.string(),
+      description: z.string(),
+      sound: z.string(),
+    });
+
     const storySchema = z.object({
       title: z.string().min(1),
-      pages: z.array(z.object({
-        character: z.string().min(1),
-        emoji: z.string().min(1),
-        title: z.string().min(1),
-        description: z.string().min(1),
-        sound: z.string().min(1),
-      })).min(1),
+      pages: z.array(storyPageSchema).length(10),
     });
-    story = storySchema.parse(story);
+
+    const validated = storySchema.parse(story);
+    console.log("Story validated successfully");
 
     return new Response(
-      JSON.stringify({
-        story,
-        analysis: {
-          colors: analysis.colors,
-          theme: analysis.theme,
-          mood: analysis.mood,
-        },
-      }),
+      JSON.stringify({ story: validated, analysis }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
