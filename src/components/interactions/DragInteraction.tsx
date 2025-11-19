@@ -39,7 +39,7 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
   const positionClasses = {
     top: "top-4",
     center: "top-1/2 -translate-y-1/2",
-    bottom: "bottom-4"
+    bottom: "bottom-28"
   };
 
   return (
