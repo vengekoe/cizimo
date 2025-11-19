@@ -8,14 +8,14 @@ const corsHeaders = {
 };
 
 const pageSchema = z.object({
-  character: z.string().max(50),
+  character: z.string().max(100),
   emoji: z.string().max(10),
-  description: z.string().max(200),
+  description: z.string().max(500),
 });
 
 const requestSchema = z.object({
   pages: z.array(pageSchema).min(1, "At least one page is required").max(20, "Maximum 20 pages allowed"),
-  theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
+  theme: z.string().min(1, "Theme cannot be empty").max(500, "Theme must be less than 500 characters"),
 });
 
 serve(async (req) => {
