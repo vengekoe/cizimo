@@ -134,34 +134,38 @@ JSON formatında dön:
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+            text: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur.
 
-Renkler: ${analysis.colors.join(", ")}
-Tema: ${analysis.theme}
-Duygu: ${analysis.mood}
-Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
+HİKAYE ÖZELLİKLERİ:
+- Renkler: ${analysis.colors.join(", ")}
+- Tema: ${analysis.theme}
+- Duygu: ${analysis.mood}
+- Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
 
-KURALLAR:
-1) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
-2) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
-3) Karakterler tutarlı davransın
-4) Son sayfada pozitif final olsun
+ÖNEMLİ KURALLAR:
+1) HİKAYE TAMAMEN TÜRKÇE OLMALIDIR
+2) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
+3) Sonra bu hikayeyi 10 ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
+4) Karakterler tutarlı davransın ve her sayfada gelişsinler
+5) Son sayfada pozitif, mutlu bir final olsun
+6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
+7) Sayfa başlıkları ve açıklamaları yaratıcı ve ilgi çekici olmalı
 
-JSON FORMATINDA DÖNÜŞ YAP:
+JSON FORMATINDA DÖNÜŞ YAP (tüm içerik Türkçe):
 {
   "title": "${analysis.title}",
   "pages": [
     {
-      "character": "Karakter adı",
+      "character": "Karakter adı (Türkçe)",
       "emoji": "🎨",
-      "title": "Sayfa başlığı",
-      "description": "Detaylı açıklama (en az 3 cümle, hikayenin devamı)",
-      "sound": "Ses efekti"
+      "title": "Sayfa başlığı (Türkçe)",
+      "description": "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)",
+      "sound": "Ses efekti (Türkçe)"
     }
   ]
 }
 
-Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
+UNUTMA: Tüm metin içeriği (başlık, karakter adları, açıklamalar, sesler) TAMAMEN TÜRKÇE olmalıdır!`
           }]
         }],
         generationConfig: {
