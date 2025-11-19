@@ -53,7 +53,7 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-[100]">
+    <div className="absolute inset-0 pointer-events-none z-30">
       {visibleAnimals.map((animal, index) => (
         <button
           key={index}
@@ -77,7 +77,7 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
           
           {/* Ses balonu - tıklandığında göster */}
           {activeAnimal === index && (
-            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 animate-fade-in z-[200]">
+            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 animate-fade-in z-[60]">
               <div className="bg-background/95 text-foreground px-4 py-2 rounded-full border-2 border-primary shadow-lg whitespace-nowrap text-sm font-bold">
                 {animal.sound}
               </div>
