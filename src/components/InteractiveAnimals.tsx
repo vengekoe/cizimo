@@ -9,9 +9,12 @@ interface Animal {
 
 // Gerçekçi hayvan sesleri için audio element kullan
 const playSound = (soundUrl: string) => {
+  console.log('Ses çalmaya çalışılıyor:', soundUrl);
   const audio = new Audio(soundUrl);
   audio.volume = 0.5;
-  audio.play().catch(err => console.log('Ses çalınamadı:', err));
+  audio.play()
+    .then(() => console.log('Ses başarıyla çalındı'))
+    .catch(err => console.error('Ses çalınamadı:', err));
 };
 
 const animals: Animal[] = [
