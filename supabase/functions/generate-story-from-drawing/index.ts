@@ -188,15 +188,26 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     }
 
     const storyData = await storyResponse.json();
+    console.log("Gemini response:", JSON.stringify(storyData, null, 2));
+    
     const storyRaw = storyData.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!storyRaw) {
+      console.error("No text in Gemini response");
+      console.error("Full response:", JSON.stringify(storyData));
+      throw new Error("Gemini'den metin alınamadı. Lütfen tekrar deneyin.");
+    }
 
-    console.log("Story generated successfully");
+    console.log("Story text received, length:", storyRaw.length);
 
     let story: any;
     try {
-      story = typeof storyRaw === "string" ? JSON.parse(storyRaw) : storyRaw;
-    } catch {
-      console.error("Primary story JSON parse failed, attempting brace-slice");
+      story = JSON.parse(storyRaw);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      console.error("Raw text:", storyRaw.substring(0, 500));
+      
+      // Try to extract JSON from text
       const start = storyRaw.indexOf("{");
       const end = storyRaw.lastIndexOf("}");
       if (start !== -1 && end !== -1) {
@@ -204,13 +215,11 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
           story = JSON.parse(storyRaw.slice(start, end + 1));
         } catch (e2) {
           console.error("Brace-slice parse failed:", e2);
+          throw new Error("Hikaye formatı geçersiz");
         }
+      } else {
+        throw new Error("JSON formatı bulunamadı");
       }
-    }
-
-    if (!story) {
-      console.error("Story parse failed. Debug -> contentLen:", storyRaw?.length ?? 0);
-      throw new Error("Invalid story format from AI response");
     }
 
     // Validate story structure
