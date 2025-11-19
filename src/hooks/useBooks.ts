@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Book, defaultBooks } from "@/data/books";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
 export interface GenerationProgress {
@@ -10,6 +11,7 @@ export interface GenerationProgress {
 }
 
 export const useBooks = () => {
+  const { user } = useAuth();
   const [books, setBooks] = useState<Book[]>(() => {
     try {
       const saved = localStorage.getItem("storybooks");
@@ -26,22 +28,143 @@ export const useBooks = () => {
   });
 
   useEffect(() => {
-    loadBooks();
-  }, []);
+    if (user) {
+      loadBooks();
+    }
+  }, [user]);
 
-  const loadBooks = () => {
+  const loadBooks = async () => {
+    if (!user) return;
+    
     try {
-      const saved = localStorage.getItem("storybooks");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setBooks(parsed);
+      // Önce Supabase'den yükle
+      const { data: booksData, error: booksError } = await supabase
+        .from('books')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (booksError) throw booksError;
+
+      if (booksData && booksData.length > 0) {
+        // Her kitap için sayfa bilgilerini yükle
+        const booksWithPages = await Promise.all(
+          booksData.map(async (bookData) => {
+            const { data: pagesData, error: pagesError } = await supabase
+              .from('book_pages')
+              .select('*')
+              .eq('book_id', bookData.id)
+              .order('page_number', { ascending: true });
+
+            if (pagesError) {
+              console.error('Sayfa yükleme hatası:', pagesError);
+              return null;
+            }
+
+            return {
+              id: bookData.id,
+              title: bookData.title,
+              theme: bookData.theme,
+              coverEmoji: bookData.cover_emoji,
+              coverImage: bookData.cover_image || undefined,
+              isFromDrawing: bookData.is_from_drawing || false,
+              isFavorite: bookData.is_favorite || false,
+              lastReadAt: bookData.last_read_at || undefined,
+              pages: pagesData.map(page => ({
+                character: page.character,
+                emoji: page.emoji,
+                title: page.title,
+                description: page.description,
+                sound: page.sound,
+                backgroundImage: page.background_image || undefined,
+              })),
+            } as Book;
+          })
+        );
+
+        const validBooks = booksWithPages.filter((book): book is Book => book !== null);
+        setBooks(validBooks);
+        // Sync to localStorage as backup
+        localStorage.setItem("storybooks", JSON.stringify(validBooks));
+      } else {
+        // Supabase'de kitap yoksa localStorage'dan yükle ve Supabase'e migrate et
+        const saved = localStorage.getItem("storybooks");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setBooks(parsed);
+          // Migrate to Supabase
+          await migrateLocalStorageToSupabase(parsed);
+        }
       }
     } catch (error) {
       console.error("Kitaplar yüklenemedi:", error);
+      // Fallback to localStorage
+      try {
+        const saved = localStorage.getItem("storybooks");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setBooks(parsed);
+        }
+      } catch (localError) {
+        console.error("LocalStorage'dan da yüklenemedi:", localError);
+      }
     }
   };
 
-  const saveBooks = (newBooks: Book[]) => {
+  const migrateLocalStorageToSupabase = async (localBooks: Book[]) => {
+    if (!user) return;
+    
+    try {
+      for (const book of localBooks) {
+        // Insert book
+        const { error: bookError } = await supabase
+          .from('books')
+          .insert({
+            id: book.id,
+            user_id: user.id,
+            title: book.title,
+            theme: book.theme,
+            cover_emoji: book.coverEmoji,
+            cover_image: book.coverImage,
+            is_from_drawing: book.isFromDrawing || false,
+            is_favorite: book.isFavorite || false,
+            last_read_at: book.lastReadAt,
+          });
+
+        if (bookError) {
+          console.error('Book insert error:', bookError);
+          continue;
+        }
+
+        // Insert pages
+        const pagesData = book.pages.map((page, index) => ({
+          book_id: book.id,
+          page_number: index,
+          character: page.character,
+          emoji: page.emoji,
+          title: page.title,
+          description: page.description,
+          sound: page.sound,
+          background_image: page.backgroundImage,
+        }));
+
+        const { error: pagesError } = await supabase
+          .from('book_pages')
+          .insert(pagesData);
+
+        if (pagesError) {
+          console.error('Pages insert error:', pagesError);
+        }
+      }
+      toast.success("Kitaplarınız veritabanına aktarıldı!");
+    } catch (error) {
+      console.error("Migration error:", error);
+    }
+  };
+
+  const saveBooks = async (newBooks: Book[]) => {
+    if (!user) return;
+    
     try {
       // Sadece metadata'yı kaydet, görseller zaten storage'da
       const booksToSave = newBooks.map(book => ({
@@ -51,11 +174,63 @@ export const useBooks = () => {
           // backgroundImage zaten URL, olduğu gibi kaydet
         }))
       }));
+      
+      // Save to localStorage as backup
       localStorage.setItem("storybooks", JSON.stringify(booksToSave));
       setBooks(newBooks);
+      
+      // Save to Supabase
+      for (const book of newBooks) {
+        // Upsert book
+        const { error: bookError } = await supabase
+          .from('books')
+          .upsert({
+            id: book.id,
+            user_id: user.id,
+            title: book.title,
+            theme: book.theme,
+            cover_emoji: book.coverEmoji,
+            cover_image: book.coverImage,
+            is_from_drawing: book.isFromDrawing || false,
+            is_favorite: book.isFavorite || false,
+            last_read_at: book.lastReadAt,
+          }, {
+            onConflict: 'id'
+          });
+
+        if (bookError) {
+          console.error('Book save error:', bookError);
+          continue;
+        }
+
+        // Delete existing pages and insert new ones
+        await supabase
+          .from('book_pages')
+          .delete()
+          .eq('book_id', book.id);
+
+        const pagesData = book.pages.map((page, index) => ({
+          book_id: book.id,
+          page_number: index,
+          character: page.character,
+          emoji: page.emoji,
+          title: page.title,
+          description: page.description,
+          sound: page.sound,
+          background_image: page.backgroundImage,
+        }));
+
+        const { error: pagesError } = await supabase
+          .from('book_pages')
+          .insert(pagesData);
+
+        if (pagesError) {
+          console.error('Pages save error:', pagesError);
+        }
+      }
     } catch (error) {
       console.error("Kitaplar kaydedilemedi:", error);
-      toast.error("Kitap kaydedilemedi. Çok fazla kitap var, bazılarını silin.");
+      toast.error("Kitap kaydedilemedi.");
     }
   };
 
@@ -404,10 +579,26 @@ export const useBooks = () => {
     }
   };
 
-  const deleteBook = (bookId: string) => {
+  const deleteBook = async (bookId: string) => {
+    if (!user) return;
+    
     try {
       const updatedBooks = books.filter(book => book.id !== bookId);
-      saveBooks(updatedBooks);
+      
+      // Delete from Supabase (cascade will delete pages)
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Supabase delete error:', error);
+      }
+      
+      // Update local state and localStorage
+      localStorage.setItem("storybooks", JSON.stringify(updatedBooks));
+      setBooks(updatedBooks);
       toast.success("Kitap silindi");
     } catch (error) {
       console.error("Kitap silinemedi:", error);
@@ -415,24 +606,61 @@ export const useBooks = () => {
     }
   };
 
-  const toggleFavorite = (bookId: string) => {
+  const toggleFavorite = async (bookId: string) => {
+    if (!user) return;
+    
     try {
-      const updatedBooks = books.map(book =>
-        book.id === bookId ? { ...book, isFavorite: !book.isFavorite } : book
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+      
+      const newFavoriteStatus = !book.isFavorite;
+      const updatedBooks = books.map(b =>
+        b.id === bookId ? { ...b, isFavorite: newFavoriteStatus } : b
       );
-      saveBooks(updatedBooks);
+      
+      // Update Supabase
+      const { error } = await supabase
+        .from('books')
+        .update({ is_favorite: newFavoriteStatus })
+        .eq('id', bookId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+      }
+      
+      // Update local state and localStorage
+      localStorage.setItem("storybooks", JSON.stringify(updatedBooks));
+      setBooks(updatedBooks);
     } catch (error) {
       console.error("Favori güncellenemedi:", error);
       toast.error("Favori güncellenemedi");
     }
   };
 
-  const updateLastRead = (bookId: string) => {
+  const updateLastRead = async (bookId: string) => {
+    if (!user) return;
+    
     try {
+      const now = new Date().toISOString();
       const updatedBooks = books.map(book =>
-        book.id === bookId ? { ...book, lastReadAt: new Date().toISOString() } : book
+        book.id === bookId ? { ...book, lastReadAt: now } : book
       );
-      saveBooks(updatedBooks);
+      
+      // Update Supabase
+      const { error } = await supabase
+        .from('books')
+        .update({ last_read_at: now })
+        .eq('id', bookId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+      }
+      
+      // Update local state and localStorage
+      localStorage.setItem("storybooks", JSON.stringify(updatedBooks));
+      setBooks(updatedBooks);
     } catch (error) {
       console.error("Son okunma tarihi güncellenemedi:", error);
     }
