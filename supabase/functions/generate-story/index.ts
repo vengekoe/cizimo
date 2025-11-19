@@ -95,11 +95,14 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     }
 
     const data = await response.json();
+    console.log("Gemini response:", JSON.stringify(data, null, 2));
+    
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      console.error("No content in Gemini response:", JSON.stringify(data));
-      throw new Error("Gemini'den içerik alınamadı");
+      console.error("No content in Gemini response");
+      console.error("Full response:", JSON.stringify(data));
+      throw new Error("Gemini'den metin alınamadı. Lütfen tekrar deneyin.");
     }
 
     console.log("Story content received, length:", content.length);
@@ -108,9 +111,22 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     try {
       story = JSON.parse(content);
     } catch (parseError) {
-      console.error("Failed to parse story JSON:", parseError);
-      console.error("Content:", content);
-      throw new Error("Hikaye formatı geçersiz");
+      console.error("JSON parse error:", parseError);
+      console.error("Raw content:", content.substring(0, 500));
+      
+      // Try to extract JSON from text
+      const start = content.indexOf("{");
+      const end = content.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        try {
+          story = JSON.parse(content.slice(start, end + 1));
+        } catch (e2) {
+          console.error("Brace-slice parse failed:", e2);
+          throw new Error("Hikaye formatı geçersiz");
+        }
+      } else {
+        throw new Error("JSON formatı bulunamadı");
+      }
     }
 
     // Validate story structure
