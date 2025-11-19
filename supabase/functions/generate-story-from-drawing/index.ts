@@ -42,21 +42,21 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { imageBase64 } = requestSchema.parse(body);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
-    console.log("Analyzing child's drawing with Gemini...");
+    console.log("Analyzing child's drawing with OpenAI...");
 
     // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
@@ -109,7 +109,7 @@ JSON formatında dön:
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "Lovable AI kredileriniz tükendi. Lütfen Settings -> Workspace -> Usage bölümünden kredi ekleyin."
+            message: "OpenAI API kredileriniz tükendi."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -119,7 +119,7 @@ JSON formatında dön:
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyip tekrar deneyin."
+            message: "Çok fazla istek gönderildi."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -141,14 +141,14 @@ JSON formatında dön:
     console.log("Analysis complete - Title:", analysis.title);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-5-2025-08-07",
           messages: [
             {
               role: "system",
@@ -199,7 +199,7 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
         return new Response(
           JSON.stringify({ 
             error: "PAYMENT_REQUIRED",
-            message: "Lovable AI kredileriniz tükendi. Lütfen Settings -> Workspace -> Usage bölümünden kredi ekleyin."
+            message: "OpenAI API kredileriniz tükendi."
           }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -209,7 +209,7 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyip tekrar deneyin."
+            message: "Çok fazla istek gönderildi."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
