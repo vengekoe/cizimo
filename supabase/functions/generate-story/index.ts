@@ -30,30 +30,23 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { theme } = requestSchema.parse(body);
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY is not configured");
     }
 
     console.log("Generating story with theme:", theme);
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
-        messages: [
-          {
-            role: "system",
-            content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yalnızca geçerli JSON formatında yanıt ver.",
-          },
-          {
-            role: "user",
-            content: `"${theme}" temalı 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+        contents: [{
+          parts: [{
+            text: `"${theme}" temalı 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
 KURALLAR:
 1) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
@@ -69,31 +62,24 @@ JSON FORMATINDA DÖNÜŞ YAP:
       "character": "Karakter adı",
       "emoji": "🎨",
       "title": "Sayfa başlığı",
-      "description": "Detaylı açıklama",
+      "description": "Detaylı açıklama (en az 3 cümle, hikayenin devamı)",
       "sound": "Ses efekti"
     }
   ]
-}`
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 2048,
+}
+
+Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
+          }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: "PAYMENT_REQUIRED",
-            message: "OpenAI API kredileriniz tükendi."
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      console.error("Gemini API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -105,15 +91,15 @@ JSON FORMATINDA DÖNÜŞ YAP:
         );
       }
       
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      console.error("No content in OpenAI response:", JSON.stringify(data));
-      throw new Error("OpenAI'den içerik alınamadı");
+      console.error("No content in Gemini response:", JSON.stringify(data));
+      throw new Error("Gemini'den içerik alınamadı");
     }
 
     console.log("Story content received, length:", content.length);
@@ -122,30 +108,37 @@ JSON FORMATINDA DÖNÜŞ YAP:
     try {
       story = JSON.parse(content);
     } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("Content that failed to parse:", content.substring(0, 500));
-      throw new Error("Geçersiz JSON formatı");
+      console.error("Failed to parse story JSON:", parseError);
+      console.error("Content:", content);
+      throw new Error("Hikaye formatı geçersiz");
     }
 
     // Validate story structure
-    story = storySchema.parse(story);
-
-    console.log("Story generated successfully:", story.title);
+    const validated = storySchema.parse(story);
+    console.log("Story validated successfully");
 
     return new Response(
-      JSON.stringify({ story }),
+      JSON.stringify({ story: validated }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in generate-story:", error);
-    const isValidationError = error instanceof z.ZodError;
+    console.error("Error in generate-story function:", error);
+
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Validation error",
+          details: error.errors 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
-        error: isValidationError 
-          ? `Validation error: ${error.errors.map(err => err.message).join(', ')}`
-          : error instanceof Error ? error.message : "Bilinmeyen hata" 
+        error: error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu" 
       }),
-      { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

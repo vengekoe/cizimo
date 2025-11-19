@@ -42,32 +42,26 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const { imageBase64 } = requestSchema.parse(body);
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
-    console.log("Analyzing child's drawing with OpenAI...");
+    console.log("Analyzing child's drawing with Gemini...");
+
+    // Base64 string'den data URL prefix'ini çıkar
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-2025-04-14",
-        messages: [
-          {
-            role: "system",
-            content: "Sen çocuk çizimlerini anlayan bir yardımcısın. Çizimdeki renkleri, karakterleri, duyguyu ve temayı analiz et ve JSON formatında döndür.",
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Bu çocuk çizimini analiz et ve şunları belirle:
+        contents: [{
+          parts: [
+            {
+              text: `Bu çocuk çizimini analiz et ve şunları belirle:
 1. Çizimdeki ana renkler (en fazla 3 renk)
 2. Çizimdeki karakterler veya nesneler (en fazla 4 karakter)
 3. Genel tema ve duygu
@@ -87,17 +81,18 @@ JSON formatında dön:
   "mood": "Duygu/atmosfer",
   "title": "Hikaye başlığı"
 }`
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageBase64
-                }
+            },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Data
               }
-            ]
-          },
-        ],
-        response_format: { type: "json_object" },
+            }
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       }),
     });
 
@@ -105,21 +100,11 @@ JSON formatında dön:
       const errorText = await analysisResponse.text();
       console.error("Analysis failed:", analysisResponse.status, errorText);
       
-      if (analysisResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: "PAYMENT_REQUIRED",
-            message: "OpenAI API kredileriniz tükendi."
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
       if (analysisResponse.status === 429) {
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi."
+            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyin."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -129,34 +114,27 @@ JSON formatında dön:
     }
 
     const analysisData = await analysisResponse.json();
-    const analysisRaw = analysisData.choices?.[0]?.message?.content;
+    const analysisRaw = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
     let analysis: any;
     try {
       analysis = typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : analysisRaw;
     } catch {
-      const match = typeof analysisRaw === "string" ? analysisRaw.match(/\{[\s\S]*\}/) : null;
+      const match = analysisRaw?.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Invalid analysis format");
       analysis = JSON.parse(match[0]);
     }
     console.log("Analysis complete - Title:", analysis.title);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    const storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-5-2025-08-07",
-          messages: [
-            {
-              role: "system",
-              content: "Sen çocuklar için yaratıcı hikayeler yazan bir yazarsın. Baştan sona tutarlı, akıcı ve bütünsel hikayeler oluşturursun. Yalnızca geçerli JSON formatında yanıt ver.",
-            },
-            {
-              role: "user",
-              content: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+        contents: [{
+          parts: [{
+            text: `Aşağıdaki özelliklere dayanarak 10 sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
 Renkler: ${analysis.colors.join(", ")}
 Tema: ${analysis.theme}
@@ -184,10 +162,11 @@ JSON FORMATINDA DÖNÜŞ YAP:
 }
 
 Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
-          }
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 2048,
+          }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       }),
     });
 
@@ -195,21 +174,11 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
       const errorText = await storyResponse.text();
       console.error("Story generation failed:", storyResponse.status, errorText);
       
-      if (storyResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ 
-            error: "PAYMENT_REQUIRED",
-            message: "OpenAI API kredileriniz tükendi."
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
       if (storyResponse.status === 429) {
         return new Response(
           JSON.stringify({ 
             error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi."
+            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyin."
           }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -219,7 +188,7 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     }
 
     const storyData = await storyResponse.json();
-    const storyRaw = storyData.choices?.[0]?.message?.content;
+    const storyRaw = storyData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     console.log("Story generated successfully");
 
@@ -245,19 +214,6 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     }
 
     // Validate story structure
-    const storyPageSchema = z.object({
-      character: z.string(),
-      emoji: z.string(),
-      title: z.string(),
-      description: z.string(),
-      sound: z.string(),
-    });
-
-    const storySchema = z.object({
-      title: z.string().min(1),
-      pages: z.array(storyPageSchema).length(10),
-    });
-
     const validated = storySchema.parse(story);
     console.log("Story validated successfully");
 
@@ -267,14 +223,19 @@ Toplam 10 sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
     );
   } catch (error) {
     console.error("Error in generate-story-from-drawing:", error);
-    const isValidationError = error instanceof z.ZodError;
+    
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request format", details: error.errors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ 
-        error: isValidationError 
-          ? `Validation error: ${error.errors.map(err => err.message).join(', ')}`
-          : error instanceof Error ? error.message : "Bilinmeyen hata" 
+        error: error instanceof Error ? error.message : "Unknown error occurred" 
       }),
-      { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
