@@ -7,43 +7,22 @@ interface Animal {
   position: { left: string; top: string };
 }
 
-// Basit ses efektleri için frekans değerleri
-const createSound = (frequency: number, duration: number = 200) => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.value = frequency;
-  oscillator.type = 'sine';
-  
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + duration / 1000);
+// Gerçekçi hayvan sesleri için audio element kullan
+const playSound = (soundUrl: string) => {
+  const audio = new Audio(soundUrl);
+  audio.volume = 0.5;
+  audio.play().catch(err => console.log('Ses çalınamadı:', err));
 };
 
 const animals: Animal[] = [
-  { emoji: "🐦", sound: "Cik cik!", soundUrl: "", position: { left: "10%", top: "15%" } },
-  { emoji: "🐸", sound: "Vrak vrak!", soundUrl: "", position: { left: "85%", top: "20%" } },
-  { emoji: "🦋", sound: "Fır fır!", soundUrl: "", position: { left: "15%", top: "60%" } },
-  { emoji: "🐝", sound: "Vızz vızz!", soundUrl: "", position: { left: "75%", top: "55%" } },
-  { emoji: "🐛", sound: "Hışır hışır!", soundUrl: "", position: { left: "30%", top: "75%" } },
-  { emoji: "🦗", sound: "Cırcır!", soundUrl: "", position: { left: "60%", top: "70%" } },
+  { emoji: "🐦", sound: "Cik cik!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/2462/2462-preview.mp3", position: { left: "10%", top: "15%" } },
+  { emoji: "🐸", sound: "Vrak vrak!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/2520/2520-preview.mp3", position: { left: "85%", top: "20%" } },
+  { emoji: "🦋", sound: "Fır fır!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/2485/2485-preview.mp3", position: { left: "15%", top: "60%" } },
+  { emoji: "🐝", sound: "Vızz vızz!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/1836/1836-preview.mp3", position: { left: "75%", top: "55%" } },
+  { emoji: "🐛", sound: "Hışır hışır!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/2477/2477-preview.mp3", position: { left: "30%", top: "75%" } },
+  { emoji: "🦗", sound: "Cırcır!", soundUrl: "https://assets.mixkit.co/active_storage/sfx/1847/1847-preview.mp3", position: { left: "60%", top: "70%" } },
 ];
 
-// Her hayvan için farklı ses frekansları
-const animalSounds: Record<string, number[]> = {
-  "🐦": [1200, 1400], // Kuş - yüksek ton
-  "🐸": [300, 400],   // Kurbağa - alçak ton
-  "🦋": [800, 1000],  // Kelebek - orta ton
-  "🐝": [500, 600],   // Arı - vızıltı
-  "🐛": [200, 250],   // Tırtıl - çok alçak
-  "🦗": [600, 700],   // Cırcır böceği - cırcır sesi
-};
 
 interface InteractiveAnimalsProps {
   pageNumber: number;
@@ -58,20 +37,14 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
     (pageNumber + index) % 3 !== 0
   ).slice(0, 4);
 
-  const playAnimalSound = (emoji: string) => {
-    const frequencies = animalSounds[emoji] || [500, 600];
-    
-    // İki notayı ard arda çal
-    createSound(frequencies[0], 150);
-    setTimeout(() => createSound(frequencies[1], 150), 100);
-  };
-
-  const handleAnimalClick = (index: number, emoji: string) => {
+  const handleAnimalClick = (index: number, animal: Animal) => {
     setActiveAnimal(index);
     setClickedAnimals(prev => new Set([...prev, index]));
     
-    // Ses çal
-    playAnimalSound(emoji);
+    // Gerçek hayvan sesini çal
+    if (animal.soundUrl) {
+      playSound(animal.soundUrl);
+    }
     
     // 600ms sonra animasyonu kaldır
     setTimeout(() => {
@@ -84,7 +57,7 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
       {visibleAnimals.map((animal, index) => (
         <button
           key={index}
-          onClick={() => handleAnimalClick(index, animal.emoji)}
+          onClick={() => handleAnimalClick(index, animal)}
           className="absolute pointer-events-auto cursor-pointer transition-all duration-300 hover:scale-125 focus:outline-none group"
           style={{
             left: animal.position.left,
