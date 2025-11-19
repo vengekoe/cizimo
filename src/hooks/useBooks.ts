@@ -211,8 +211,8 @@ export const useBooks = () => {
       // Görselleri oluştur
       const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
         body: {
-          pages: storyData.pages,
-          theme: `${storyData.metadata.theme}, using colors: ${storyData.metadata.colors.join(", ")}, in a child-drawing style`,
+          pages: storyData.story.pages,
+          theme: `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`,
         },
       });
 
@@ -230,16 +230,16 @@ export const useBooks = () => {
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
-      const pages = storyData.pages.map((page: any, index: number) => ({
+      const pages = storyData.story.pages.map((page: any, index: number) => ({
         ...page,
         backgroundImage: uploadedUrls[index] || undefined,
       }));
 
       const newBook: Book = {
         id: bookId,
-        title: storyData.title,
-        theme: storyData.metadata.theme,
-        coverEmoji: storyData.pages[0]?.emoji || "🎨",
+        title: storyData.story.title,
+        theme: storyData.analysis.theme,
+        coverEmoji: storyData.story.pages[0]?.emoji || "🎨",
         coverImage: coverImageUrl || undefined,
         isFromDrawing: true,
         pages,
@@ -248,7 +248,7 @@ export const useBooks = () => {
       const updatedBooks = [...books, newBook];
       saveBooks(updatedBooks);
       setProgress({ stage: 'complete', percentage: 100, message: 'Tamamlandı!' });
-      toast.success(`"${storyData.title}" çiziminden oluşturuldu!`);
+      toast.success(`"${storyData.story.title}" çiziminden oluşturuldu!`);
       return newBook;
     } catch (error) {
       console.error("Çizimden hikaye oluşturulamadı:", error);
@@ -315,10 +315,10 @@ export const useBooks = () => {
       const { data: coverData } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: [{
-            character: storyData.title,
-            emoji: storyData.pages[0]?.emoji || "📖",
-            title: storyData.title,
-            description: `Book cover for ${storyData.title}`,
+            character: storyData.story.title,
+            emoji: storyData.story.pages[0]?.emoji || "📖",
+            title: storyData.story.title,
+            description: `Book cover for ${storyData.story.title}`,
             sound: ""
           }],
           theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`
@@ -336,7 +336,7 @@ export const useBooks = () => {
       // Sayfa görselleri oluştur
       const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
         body: {
-          pages: storyData.pages,
+          pages: storyData.story.pages,
           theme
         },
       });
@@ -355,16 +355,16 @@ export const useBooks = () => {
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
-      const pages = storyData.pages.map((page: any, index: number) => ({
+      const pages = storyData.story.pages.map((page: any, index: number) => ({
         ...page,
         backgroundImage: uploadedUrls[index] || undefined,
       }));
 
       const newBook: Book = {
         id: bookId,
-        title: storyData.title,
+        title: storyData.story.title,
         theme,
-        coverEmoji: storyData.pages[0]?.emoji || "📖",
+        coverEmoji: storyData.story.pages[0]?.emoji || "📖",
         coverImage: coverImageUrl || undefined,
         pages,
       };
@@ -372,7 +372,7 @@ export const useBooks = () => {
       const updatedBooks = [...books, newBook];
       saveBooks(updatedBooks);
       setProgress({ stage: 'complete', percentage: 100, message: 'Tamamlandı!' });
-      toast.success(`"${storyData.title}" başarıyla oluşturuldu!`);
+      toast.success(`"${storyData.story.title}" başarıyla oluşturuldu!`);
       return newBook;
     } catch (error) {
       console.error("Hikaye oluşturulamadı:", error);
