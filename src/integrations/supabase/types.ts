@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_pages: {
+        Row: {
+          background_image: string | null
+          book_id: string
+          character: string
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          page_number: number
+          sound: string
+          title: string
+        }
+        Insert: {
+          background_image?: string | null
+          book_id: string
+          character: string
+          created_at?: string
+          description: string
+          emoji: string
+          id?: string
+          page_number: number
+          sound: string
+          title: string
+        }
+        Update: {
+          background_image?: string | null
+          book_id?: string
+          character?: string
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          page_number?: number
+          sound?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_pages_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      books: {
+        Row: {
+          cover_emoji: string
+          cover_image: string | null
+          created_at: string
+          id: string
+          is_favorite: boolean | null
+          is_from_drawing: boolean | null
+          last_read_at: string | null
+          theme: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_emoji: string
+          cover_image?: string | null
+          created_at?: string
+          id: string
+          is_favorite?: boolean | null
+          is_from_drawing?: boolean | null
+          last_read_at?: string | null
+          theme: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_emoji?: string
+          cover_image?: string | null
+          created_at?: string
+          id?: string
+          is_favorite?: boolean | null
+          is_from_drawing?: boolean | null
+          last_read_at?: string | null
+          theme?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
