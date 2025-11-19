@@ -3,17 +3,47 @@ import { useState } from "react";
 interface Animal {
   emoji: string;
   sound: string;
+  soundUrl: string; // Ses dosyası URL'i
   position: { left: string; top: string };
 }
 
+// Basit ses efektleri için frekans değerleri
+const createSound = (frequency: number, duration: number = 200) => {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  oscillator.frequency.value = frequency;
+  oscillator.type = 'sine';
+  
+  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + duration / 1000);
+};
+
 const animals: Animal[] = [
-  { emoji: "🐦", sound: "Cik cik!", position: { left: "10%", top: "15%" } },
-  { emoji: "🐸", sound: "Vrak vrak!", position: { left: "85%", top: "20%" } },
-  { emoji: "🦋", sound: "Fır fır!", position: { left: "15%", top: "70%" } },
-  { emoji: "🐝", sound: "Vızz vızz!", position: { left: "75%", top: "65%" } },
-  { emoji: "🐛", sound: "Hışır hışır!", position: { left: "30%", top: "85%" } },
-  { emoji: "🦗", sound: "Cırcır!", position: { left: "65%", top: "80%" } },
+  { emoji: "🐦", sound: "Cik cik!", soundUrl: "", position: { left: "10%", top: "15%" } },
+  { emoji: "🐸", sound: "Vrak vrak!", soundUrl: "", position: { left: "85%", top: "20%" } },
+  { emoji: "🦋", sound: "Fır fır!", soundUrl: "", position: { left: "15%", top: "60%" } },
+  { emoji: "🐝", sound: "Vızz vızz!", soundUrl: "", position: { left: "75%", top: "55%" } },
+  { emoji: "🐛", sound: "Hışır hışır!", soundUrl: "", position: { left: "30%", top: "75%" } },
+  { emoji: "🦗", sound: "Cırcır!", soundUrl: "", position: { left: "60%", top: "70%" } },
 ];
+
+// Her hayvan için farklı ses frekansları
+const animalSounds: Record<string, number[]> = {
+  "🐦": [1200, 1400], // Kuş - yüksek ton
+  "🐸": [300, 400],   // Kurbağa - alçak ton
+  "🦋": [800, 1000],  // Kelebek - orta ton
+  "🐝": [500, 600],   // Arı - vızıltı
+  "🐛": [200, 250],   // Tırtıl - çok alçak
+  "🦗": [600, 700],   // Cırcır böceği - cırcır sesi
+};
 
 interface InteractiveAnimalsProps {
   pageNumber: number;
@@ -28,9 +58,20 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
     (pageNumber + index) % 3 !== 0
   ).slice(0, 4);
 
-  const handleAnimalClick = (index: number) => {
+  const playAnimalSound = (emoji: string) => {
+    const frequencies = animalSounds[emoji] || [500, 600];
+    
+    // İki notayı ard arda çal
+    createSound(frequencies[0], 150);
+    setTimeout(() => createSound(frequencies[1], 150), 100);
+  };
+
+  const handleAnimalClick = (index: number, emoji: string) => {
     setActiveAnimal(index);
     setClickedAnimals(prev => new Set([...prev, index]));
+    
+    // Ses çal
+    playAnimalSound(emoji);
     
     // 600ms sonra animasyonu kaldır
     setTimeout(() => {
@@ -39,11 +80,11 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-10">
+    <div className="absolute inset-0 pointer-events-none z-[100]">
       {visibleAnimals.map((animal, index) => (
         <button
           key={index}
-          onClick={() => handleAnimalClick(index)}
+          onClick={() => handleAnimalClick(index, animal.emoji)}
           className="absolute pointer-events-auto cursor-pointer transition-all duration-300 hover:scale-125 focus:outline-none group"
           style={{
             left: animal.position.left,
@@ -63,7 +104,7 @@ const InteractiveAnimals = ({ pageNumber }: InteractiveAnimalsProps) => {
           
           {/* Ses balonu - tıklandığında göster */}
           {activeAnimal === index && (
-            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 animate-fade-in">
+            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 animate-fade-in z-10">
               <div className="bg-background/95 text-foreground px-4 py-2 rounded-full border-2 border-primary shadow-lg whitespace-nowrap text-sm font-bold">
                 {animal.sound}
               </div>
