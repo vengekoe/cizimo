@@ -97,7 +97,7 @@ serve(async (req) => {
       const shortDesc = page.description.length > 150 
         ? page.description.substring(0, 150) + "..." 
         : page.description;
-      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
+      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. IMPORTANT: No text, no letters, no words, no captions on the image - pure illustration only. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
       console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 80)}...`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
