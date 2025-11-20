@@ -54,7 +54,7 @@ serve(async (req) => {
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+    const analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -128,7 +128,7 @@ JSON formatında dön:
     console.log("Analysis complete - Title:", analysis.title);
 
     // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+    const storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
