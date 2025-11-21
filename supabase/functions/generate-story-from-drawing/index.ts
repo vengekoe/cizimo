@@ -21,6 +21,7 @@ const requestSchema = z.object({
     }, "Invalid image format"),
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
+  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini"]).optional().default("gemini-3-pro-preview"),
 });
 
 const storyPageSchema = z.object({
@@ -43,27 +44,20 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64, language, pageCount } = requestSchema.parse(body);
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const { imageBase64, language, pageCount, model } = requestSchema.parse(body);
     
-    if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
-
-    console.log("Analyzing child's drawing with Gemini...");
+    console.log(`Analyzing drawing with ${model}: lang=${language}, pages=${pageCount}`);
 
     // Base64 string'den data URL prefix'ini çıkar
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const base64Parts = imageBase64.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!base64Parts) {
+      throw new Error("Invalid image format");
+    }
+    const mimeType = `image/${base64Parts[1]}`;
+    const base64Data = base64Parts[2];
 
-    // İlk adım: Resmi analiz et
-    const analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            {
-              text: `Bu çocuk çizimini analiz et ve şunları belirle:
+    // Step 1: Analyze the drawing
+    const analysisPrompt = `Bu çocuk çizimini analiz et ve şunları belirle:
 1. Çizimdeki ana renkler (en fazla 3 renk)
 2. Çizimdeki karakterler veya nesneler (en fazla 4 karakter)
 3. Genel tema ve duygu
@@ -82,175 +76,244 @@ JSON formatında dön:
   "theme": "Genel tema açıklaması",
   "mood": "Duygu/atmosfer",
   "title": "Hikaye başlığı"
-}`
-            },
+}`;
+
+    let analysisResponse: Response;
+
+    if (model === "gpt-5-mini") {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+      analysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5-mini",
+          messages: [
             {
-              inlineData: {
-                mimeType: "image/jpeg",
-                data: base64Data
-              }
+              role: "user",
+              content: [
+                { type: "text", text: analysisPrompt },
+                {
+                  type: "image_url",
+                  image_url: { url: imageBase64 }
+                }
+              ]
             }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      }),
-    });
+          ],
+          max_completion_tokens: 2048,
+        })
+      });
+    } else {
+      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+      if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
+
+      analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: analysisPrompt },
+              { inlineData: { mimeType, data: base64Data } }
+            ]
+          }],
+          generationConfig: { responseMimeType: "application/json" }
+        }),
+      });
+    }
 
     if (!analysisResponse.ok) {
       const errorText = await analysisResponse.text();
-      console.error("Analysis failed:", analysisResponse.status, errorText);
+      console.error(`${model} analysis error:`, analysisResponse.status, errorText);
       
       if (analysisResponse.status === 429) {
         return new Response(
-          JSON.stringify({ 
-            error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyin."
-          }),
+          JSON.stringify({ error: "RATE_LIMIT" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
-      throw new Error(`Failed to analyze drawing: ${analysisResponse.status}`);
+      if (analysisResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "PAYMENT_REQUIRED" }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw new Error(`Analysis failed: ${analysisResponse.status}`);
     }
 
     const analysisData = await analysisResponse.json();
-    const analysisRaw = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
-    let analysis: any;
-    try {
-      analysis = typeof analysisRaw === "string" ? JSON.parse(analysisRaw) : analysisRaw;
-    } catch {
-      const match = analysisRaw?.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error("Invalid analysis format");
-      analysis = JSON.parse(match[0]);
+    let analysisText: string;
+
+    if (model === "gpt-5-mini") {
+      analysisText = analysisData?.choices?.[0]?.message?.content;
+    } else {
+      analysisText = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
     }
-    console.log("Analysis complete - Title:", analysis.title);
 
-    // İkinci adım: Analiz sonucuna göre hikaye oluştur
-    const storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Aşağıdaki özelliklere dayanarak ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur.
+    if (!analysisText) {
+      throw new Error("Failed to analyze drawing");
+    }
 
-HİKAYE ÖZELLİKLERİ:
-- Renkler: ${analysis.colors.join(", ")}
+    let analysis;
+    try {
+      analysis = JSON.parse(analysisText);
+    } catch {
+      const start = analysisText.indexOf("{");
+      const end = analysisText.lastIndexOf("}");
+      if (start !== -1 && end !== -1) {
+        analysis = JSON.parse(analysisText.slice(start, end + 1));
+      } else {
+        throw new Error("Invalid analysis format");
+      }
+    }
+
+    console.log("Drawing analyzed successfully");
+
+    // Step 2: Generate story based on analysis
+    const storyPrompt = `Bu çizim analizine dayanarak ${pageCount} sayfalık tutarlı bir çocuk hikayesi oluştur (${language === "tr" ? "TÜRKÇE" : "ENGLISH"}):
+
+Çizim Analizi:
+- Renkler: ${analysis.colors.join(', ')}
+- Karakterler: ${analysis.characters.map((c: any) => c.name).join(', ')}
 - Tema: ${analysis.theme}
 - Duygu: ${analysis.mood}
-- Karakterler: ${analysis.characters.map((c: any) => `${c.name} (${c.description})`).join(", ")}
-- Dil: ${language === "tr" ? "TÜRKÇE" : "ENGLISH"}
+- Başlık: ${analysis.title}
 
-ÖNEMLİ KURALLAR:
-1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
-2) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
-3) Sonra bu hikayeyi ${pageCount} ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
-4) Karakterler tutarlı davransın ve her sayfada gelişsinler
-5) Son sayfada pozitif, mutlu bir final olsun
-6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
-7) Sayfa başlıkları ve açıklamaları yaratıcı ve ilgi çekici olmalı
+KURALLAR:
+1) Hikaye ${pageCount} sayfadan oluşmalı
+2) Her sayfa bir öncekinin doğal devamı olmalı (bağımsız cümleler değil)
+3) Başlangıç-gelişme-sonuç yapısı olmalı
+4) Pozitif, mutlu bir final olmalı
+5) Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalı
 
-JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "English"}):
+JSON FORMATINDA:
 {
   "title": "${analysis.title}",
   "pages": [
     {
-      "character": "${language === "tr" ? "Karakter adı (Türkçe)" : "Character name (English)"}",
+      "character": "Karakter",
       "emoji": "🎨",
-      "title": "${language === "tr" ? "Sayfa başlığı (Türkçe)" : "Page title (English)"}",
-      "description": "${language === "tr" ? "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)" : "Detailed description (English, at least 3 sentences, continuation of the story)"}",
-      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}"
+      "title": "Sayfa başlığı",
+      "description": "En az 3 cümle, hikayenin devamı",
+      "sound": "bee/bird/cricket/frog"
     }
   ]
-}
+}`;
 
-UNUTMA: Tüm metin içeriği (başlık, karakter adları, açıklamalar, sesler) TAMAMEN ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!
-Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı.`
-          }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      }),
-    });
+    let storyResponse: Response;
+
+    if (model === "gpt-5-mini") {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      
+      storyResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a creative children's story writer. Generate stories in valid JSON format only."
+            },
+            {
+              role: "user",
+              content: storyPrompt
+            }
+          ],
+          max_completion_tokens: 8192,
+        })
+      });
+    } else {
+      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+
+      storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: storyPrompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        }),
+      });
+    }
 
     if (!storyResponse.ok) {
       const errorText = await storyResponse.text();
-      console.error("Story generation failed:", storyResponse.status, errorText);
+      console.error(`${model} story error:`, storyResponse.status, errorText);
       
       if (storyResponse.status === 429) {
         return new Response(
-          JSON.stringify({ 
-            error: "RATE_LIMIT",
-            message: "Çok fazla istek gönderildi. Lütfen birkaç saniye bekleyin."
-          }),
+          JSON.stringify({ error: "RATE_LIMIT" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
-      throw new Error(`Failed to generate story: ${storyResponse.status}`);
+      if (storyResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "PAYMENT_REQUIRED" }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw new Error(`Story generation failed: ${storyResponse.status}`);
     }
 
     const storyData = await storyResponse.json();
-    console.log("Gemini response:", JSON.stringify(storyData, null, 2));
-    
-    const storyRaw = storyData.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!storyRaw) {
-      console.error("No text in Gemini response");
-      console.error("Full response:", JSON.stringify(storyData));
-      throw new Error("Gemini'den metin alınamadı. Lütfen tekrar deneyin.");
+    let storyText: string;
+
+    if (model === "gpt-5-mini") {
+      storyText = storyData?.choices?.[0]?.message?.content;
+    } else {
+      storyText = storyData.candidates?.[0]?.content?.parts?.[0]?.text;
     }
 
-    console.log("Story text received, length:", storyRaw.length);
+    if (!storyText) {
+      throw new Error("Failed to generate story");
+    }
 
-    let story: any;
+    let story;
     try {
-      story = JSON.parse(storyRaw);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("Raw text:", storyRaw.substring(0, 500));
-      
-      // Try to extract JSON from text
-      const start = storyRaw.indexOf("{");
-      const end = storyRaw.lastIndexOf("}");
+      story = JSON.parse(storyText);
+    } catch {
+      const start = storyText.indexOf("{");
+      const end = storyText.lastIndexOf("}");
       if (start !== -1 && end !== -1) {
-        try {
-          story = JSON.parse(storyRaw.slice(start, end + 1));
-        } catch (e2) {
-          console.error("Brace-slice parse failed:", e2);
-          throw new Error("Hikaye formatı geçersiz");
-        }
+        story = JSON.parse(storyText.slice(start, end + 1));
       } else {
-        throw new Error("JSON formatı bulunamadı");
+        throw new Error("Invalid story format");
       }
     }
 
-    // Validate story structure
     const validated = storySchema.parse(story);
-    console.log("Story validated successfully");
+    console.log("Story generated and validated successfully");
 
     return new Response(
-      JSON.stringify({ story: validated, analysis }),
+      JSON.stringify({ 
+        story: validated,
+        analysis 
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error in generate-story-from-drawing:", error);
-    
+
     if (error instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({ error: "Invalid request format", details: error.errors }),
+        JSON.stringify({ 
+          error: "Validation error",
+          details: error.errors 
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
+
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
+        error: error instanceof Error ? error.message : "Unknown error" 
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
