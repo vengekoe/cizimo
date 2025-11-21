@@ -295,7 +295,7 @@ export const useBooks = () => {
       return null;
     }
   };
-  const generateBookFromDrawing = async (imageFile: File, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" = "gemini-3-pro-preview"): Promise<Book | null> => {
+  const generateBookFromDrawing = async (imageFile: File, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview"): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
     try {
@@ -473,7 +473,7 @@ export const useBooks = () => {
     }
   };
 
-  const generateBook = async (theme: string, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" = "gemini-3-pro-preview"): Promise<Book | null> => {
+  const generateBook = async (theme: string, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview"): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Hikaye oluşturuluyor...' });
     try {

@@ -21,7 +21,7 @@ const requestSchema = z.object({
     }, "Invalid image format"),
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
-  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini"]).optional().default("gemini-3-pro-preview"),
+  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini", "gpt-5.1-mini-preview"]).optional().default("gemini-3-pro-preview"),
 });
 
 const storyPageSchema = z.object({
@@ -80,9 +80,11 @@ JSON formatında dön:
 
     let analysisResponse: Response;
 
-    if (model === "gpt-5-mini") {
+    if (model === "gpt-5-mini" || model === "gpt-5.1-mini-preview") {
       const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
       if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+
+      const openaiModel = model === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
 
       analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -91,7 +93,7 @@ JSON formatında dön:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
+          model: openaiModel,
           messages: [
             {
               role: "user",
@@ -206,9 +208,11 @@ JSON FORMATINDA:
 
     let storyResponse: Response;
 
-    if (model === "gpt-5-mini") {
+    if (model === "gpt-5-mini" || model === "gpt-5.1-mini-preview") {
       const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
       if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+
+      const openaiModel = model === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
       
       storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -217,7 +221,7 @@ JSON FORMATINDA:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
+          model: openaiModel,
           messages: [
             {
               role: "system",
