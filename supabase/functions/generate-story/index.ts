@@ -11,6 +11,7 @@ const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
+  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini"]).optional().default("gemini-3-pro-preview"),
 });
 
 const storySchema = z.object({
@@ -31,24 +32,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { theme, language, pageCount } = requestSchema.parse(body);
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const { theme, language, pageCount, model } = requestSchema.parse(body);
     
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY is not configured");
-    }
+    console.log(`Generating story: theme=${theme}, lang=${language}, pages=${pageCount}, model=${model}`);
 
-    console.log("Generating story with theme:", theme);
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `"${theme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+    const prompt = `"${theme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
 KURALLAR:
 1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
@@ -72,18 +60,64 @@ JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "E
   ]
 }
 
-Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!`
-          }]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
-      }),
-    });
+Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!`;
+
+    let response: Response;
+
+    if (model === "gpt-5-mini") {
+      // Use Lovable AI Gateway for GPT-5 Mini
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        throw new Error("LOVABLE_API_KEY is not configured");
+      }
+
+      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a creative children's story writer. Generate stories in valid JSON format only."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          max_completion_tokens: 8192,
+        }),
+      });
+    } else {
+      // Use Google Gemini API
+      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+      if (!GOOGLE_AI_API_KEY) {
+        throw new Error("GOOGLE_AI_API_KEY is not configured");
+      }
+
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        }),
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
+      console.error(`${model} API error:`, response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -94,19 +128,42 @@ Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm 
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: "PAYMENT_REQUIRED",
+            message: "Lovable AI kredileriniz tükendi. Lütfen Settings → Workspace → Usage bölümünden kredi ekleyin."
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       
-      throw new Error(`Gemini API error: ${response.status}`);
+      throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Gemini response:", JSON.stringify(data, null, 2));
+    console.log(`${model} response received`);
     
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    let content: string;
+
+    if (model === "gpt-5-mini") {
+      // Extract from GPT response
+      const choice = data?.choices?.[0];
+      if (!choice) {
+        console.error("No choices in GPT response");
+        throw new Error("GPT'den yanıt alınamadı");
+      }
+      content = choice.message?.content;
+    } else {
+      // Extract from Gemini response
+      content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    }
 
     if (!content) {
-      console.error("No content in Gemini response");
+      console.error("No content in response");
       console.error("Full response:", JSON.stringify(data));
-      throw new Error("Gemini'den metin alınamadı. Lütfen tekrar deneyin.");
+      throw new Error("AI'dan metin alınamadı. Lütfen tekrar deneyin.");
     }
 
     console.log("Story content received, length:", content.length);

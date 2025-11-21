@@ -46,6 +46,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
   const [language, setLanguage] = useState<"tr" | "en">("tr");
   const [pageCount, setPageCount] = useState<number>(10);
+  const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini">("gemini-3-pro-preview");
 
   // Kullanıcı giriş yapmamışsa auth sayfasına yönlendir
   useEffect(() => {
@@ -91,7 +92,7 @@ const Home = () => {
   }, []);
 
   const handleGenerateBook = async (theme: string) => {
-    const book = await generateBook(theme, language, pageCount);
+    const book = await generateBook(theme, language, pageCount, aiModel);
     if (book) {
       toast.success("Yeni kitap hazır! Şimdi okuyabilirsiniz.");
       // Kitabı otomatik olarak aç
@@ -124,7 +125,7 @@ const Home = () => {
       toast.error("Lütfen bir çizim yükleyin");
       return;
     }
-    const book = await generateBookFromDrawing(selectedImage, language, pageCount);
+    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel);
     if (book) {
       setSelectedImage(null);
       setPreviewUrl("");
@@ -279,7 +280,7 @@ const Home = () => {
           </p>
 
           {/* Hikaye Ayarları */}
-          <div className="grid grid-cols-2 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+          <div className="grid grid-cols-3 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
             <div className="space-y-2">
               <Label htmlFor="drawing-language">Hikaye Dili</Label>
               <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
@@ -303,6 +304,18 @@ const Home = () => {
                   <SelectItem value="10">10 Sayfa</SelectItem>
                   <SelectItem value="15">15 Sayfa</SelectItem>
                   <SelectItem value="20">20 Sayfa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="drawing-model">AI Modeli</Label>
+              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini") => setAiModel(value)}>
+                <SelectTrigger id="drawing-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro</SelectItem>
+                  <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -383,7 +396,7 @@ const Home = () => {
           </h2>
 
           {/* Hikaye Ayarları */}
-          <div className="grid grid-cols-2 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+          <div className="grid grid-cols-3 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
             <div className="space-y-2">
               <Label htmlFor="theme-language">Hikaye Dili</Label>
               <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
@@ -407,6 +420,18 @@ const Home = () => {
                   <SelectItem value="10">10 Sayfa</SelectItem>
                   <SelectItem value="15">15 Sayfa</SelectItem>
                   <SelectItem value="20">20 Sayfa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="theme-model">AI Modeli</Label>
+              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini") => setAiModel(value)}>
+                <SelectTrigger id="theme-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro</SelectItem>
+                  <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
                 </SelectContent>
               </Select>
             </div>
