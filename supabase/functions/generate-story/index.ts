@@ -11,7 +11,7 @@ const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
-  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini"]).optional().default("gemini-3-pro-preview"),
+  model: z.enum(["gemini-3-pro-preview", "gpt-5-mini", "gpt-5.1-mini-preview"]).optional().default("gemini-3-pro-preview"),
 });
 
 const storySchema = z.object({
@@ -64,12 +64,14 @@ Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm 
 
     let response: Response;
 
-    if (model === "gpt-5-mini") {
+    if (model === "gpt-5-mini" || model === "gpt-5.1-mini-preview") {
       // Use OpenAI API directly
       const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
       if (!OPENAI_API_KEY) {
         throw new Error("OPENAI_API_KEY is not configured");
       }
+
+      const openaiModel = model === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
 
       response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -78,7 +80,7 @@ Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5-mini-2025-08-07",
+          model: openaiModel,
           messages: [
             {
               role: "system",

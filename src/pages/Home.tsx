@@ -46,7 +46,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
   const [language, setLanguage] = useState<"tr" | "en">("tr");
   const [pageCount, setPageCount] = useState<number>(10);
-  const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini">("gemini-3-pro-preview");
+  const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">("gemini-3-pro-preview");
 
   // Kullanıcı giriş yapmamışsa auth sayfasına yönlendir
   useEffect(() => {
@@ -309,13 +309,14 @@ const Home = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="drawing-model">AI Modeli</Label>
-              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini") => setAiModel(value)}>
+              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") => setAiModel(value)}>
                 <SelectTrigger id="drawing-model">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro</SelectItem>
                   <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
+                  <SelectItem value="gpt-5.1-mini-preview">✨ GPT-5.1 Mini Preview</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -425,13 +426,14 @@ const Home = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="theme-model">AI Modeli</Label>
-              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini") => setAiModel(value)}>
+              <Select value={aiModel} onValueChange={(value: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") => setAiModel(value)}>
                 <SelectTrigger id="theme-model">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro</SelectItem>
                   <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
+                  <SelectItem value="gpt-5.1-mini-preview">✨ GPT-5.1 Mini Preview</SelectItem>
                 </SelectContent>
               </Select>
             </div>
