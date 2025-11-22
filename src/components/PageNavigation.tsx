@@ -9,9 +9,10 @@ interface PageNavigationProps {
   onPrevious: () => void;
   onHome: () => void;
   onFinish?: () => void;
+  interactionButton?: React.ReactNode;
 }
 
-const PageNavigation = ({ currentPage, totalPages, onNext, onPrevious, onHome, onFinish }: PageNavigationProps) => {
+const PageNavigation = ({ currentPage, totalPages, onNext, onPrevious, onHome, onFinish, interactionButton }: PageNavigationProps) => {
   const isLastPage = currentPage === totalPages - 1;
   
   return (
@@ -29,6 +30,12 @@ const PageNavigation = ({ currentPage, totalPages, onNext, onPrevious, onHome, o
         </Button>
         
         <div className="flex items-center gap-4">
+          {interactionButton && (
+            <div className="flex items-center">
+              {interactionButton}
+            </div>
+          )}
+          
           <Link to="/">
             <Button
               size="lg"

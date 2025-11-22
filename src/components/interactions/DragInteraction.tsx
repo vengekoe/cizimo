@@ -44,14 +44,14 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
 
   return (
     <div 
-      className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}
+      className="flex flex-col items-center gap-2"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
       <div
         onMouseDown={handleMouseDown}
-        className={`text-4xl md:text-6xl px-8 py-6 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
+        className={`text-3xl md:text-4xl px-6 py-4 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
           isDragging ? "scale-110 shadow-2xl" : "hover:scale-105"
         }`}
         style={{
@@ -62,16 +62,11 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
         {emoji}
       </div>
       
-      <div className="text-center mt-4 pointer-events-none">
-        <p className="text-2xl md:text-3xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg">
-          {label}
+      {dragCount > 0 && (
+        <p className="text-lg text-accent font-bold animate-fade-in pointer-events-none">
+          {sound} {dragCount > 2 && "✨"}
         </p>
-        {dragCount > 0 && (
-          <p className="text-xl mt-2 text-accent font-bold animate-fade-in">
-            {sound} {dragCount > 2 && "✨"}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 };
