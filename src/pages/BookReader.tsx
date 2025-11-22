@@ -192,7 +192,6 @@ const BookReader = () => {
               {page.description}
             </p>
           </div>
-          {renderInteraction()}
         </BookPage>
       </div>
 
@@ -203,6 +202,7 @@ const BookReader = () => {
         onPrevious={handlePrevious}
         onHome={handleHome}
         onFinish={handleFinish}
+        interactionButton={renderInteraction()}
       />
 
       <BookFeedback

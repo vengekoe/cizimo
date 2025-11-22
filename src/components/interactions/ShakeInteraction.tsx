@@ -49,25 +49,20 @@ const ShakeInteraction = ({ emoji, sound, label, position = "bottom" }: ShakeInt
   };
 
   return (
-    <div className={`absolute ${positionClasses[position]} left-1/2 -translate-x-1/2 z-30`}>
+    <div className="flex flex-col items-center gap-2">
       <div
-        className={`text-4xl md:text-6xl px-8 py-6 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl transition-all duration-300 ${
+        className={`text-3xl md:text-4xl px-6 py-4 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl transition-all duration-300 ${
           isShaking ? "animate-wiggle scale-110" : ""
         }`}
       >
         {emoji}
       </div>
       
-      <div className="text-center mt-4">
-        <p className="text-2xl md:text-3xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg">
-          {label} <span className="text-lg">📱 Salla</span>
+      {shakeCount > 0 && (
+        <p className="text-lg text-accent font-bold animate-fade-in">
+          {sound} {shakeCount > 2 && "⭐"}
         </p>
-        {shakeCount > 0 && (
-          <p className="text-xl mt-2 text-accent font-bold animate-fade-in">
-            {sound} {shakeCount > 2 && "⭐"}
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 };
