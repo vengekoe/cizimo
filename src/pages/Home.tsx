@@ -154,12 +154,12 @@ const Home = () => {
       />
       <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/70 to-background/80" />
       <div className="relative z-10 container mx-auto px-4 py-12">
-        <div className="flex justify-between items-start mb-12">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 sm:mb-12">
           <div className="text-center flex-1">
-            <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold mb-2 sm:mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Hikaye Kitaplığım 📚
             </h1>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-base sm:text-xl text-muted-foreground">
               Yapay zeka ile benzersiz hikayeler keşfet!
             </p>
           </div>
@@ -167,7 +167,7 @@ const Home = () => {
             variant="outline" 
             size="sm" 
             onClick={signOut}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 shrink-0"
           >
             <LogOut className="w-4 h-4" />
             Çıkış Yap
@@ -176,27 +176,29 @@ const Home = () => {
 
         {/* Mevcut Kitaplar */}
         <div className="mb-16">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-bold flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
               <span>📖</span>
               Kitaplarım ({books.length})
             </h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Button
                 variant={sortBy === "favorites" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSortBy("favorites")}
+                className="flex-1 sm:flex-initial text-xs sm:text-sm"
               >
-                <Star className="w-4 h-4 mr-2" />
+                <Star className="w-4 h-4 mr-1 sm:mr-2" />
                 Favoriler
               </Button>
               <Button
                 variant={sortBy === "recent" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSortBy("recent")}
+                className="flex-1 sm:flex-initial text-xs sm:text-sm"
               >
-                <Clock className="w-4 h-4 mr-2" />
-                En Son Okunanlar
+                <Clock className="w-4 h-4 mr-1 sm:mr-2" />
+                En Son
               </Button>
             </div>
           </div>
@@ -280,7 +282,7 @@ const Home = () => {
           </p>
 
           {/* Hikaye Ayarları */}
-          <div className="grid grid-cols-3 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 bg-card/50 rounded-xl p-3 sm:p-4 border border-border/50">
             <div className="space-y-2">
               <Label htmlFor="drawing-language">Hikaye Dili</Label>
               <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
@@ -397,7 +399,7 @@ const Home = () => {
           </h2>
 
           {/* Hikaye Ayarları */}
-          <div className="grid grid-cols-3 gap-4 mb-6 bg-card/50 rounded-xl p-4 border border-border/50">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 bg-card/50 rounded-xl p-3 sm:p-4 border border-border/50">
             <div className="space-y-2">
               <Label htmlFor="theme-language">Hikaye Dili</Label>
               <Select value={language} onValueChange={(value: "tr" | "en") => setLanguage(value)}>
