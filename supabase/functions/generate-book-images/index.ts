@@ -84,7 +84,19 @@ serve(async (req) => {
       const mime = inline?.mimeType as string | undefined;
       
       if (!base64) {
-        console.error("Gemini görsel döndürmedi:", JSON.stringify(data).substring(0, 200));
+        const finishReason = data?.candidates?.[0]?.finishReason;
+        console.error(`Gemini görsel döndürmedi (attempt ${attempt}): finishReason=${finishReason}`);
+        
+        // NO_IMAGE veya diğer hatalar için retry
+        if (attempt < 3) {
+          console.log(`Retrying image generation (attempt ${attempt + 1})...`);
+          await delay(2000 * attempt);
+          // Prompt'u hafifçe değiştirerek yeniden dene
+          const modifiedPrompt = prompt + ` (variation ${attempt})`;
+          return generateImageWithRetry(modifiedPrompt, attempt + 1);
+        }
+        
+        console.error(`Failed to generate image after ${attempt} attempts`);
         return null;
       }
 
