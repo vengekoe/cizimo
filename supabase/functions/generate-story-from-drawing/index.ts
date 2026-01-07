@@ -22,6 +22,7 @@ const requestSchema = z.object({
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
   model: z.enum(["gemini-3-pro-preview", "gpt-5-mini", "gpt-5.1-mini-preview"]).optional().default("gemini-3-pro-preview"),
+  userDescription: z.string().max(500).optional(),
 });
 
 const storyPageSchema = z.object({
@@ -44,9 +45,9 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64, language, pageCount, model } = requestSchema.parse(body);
+    const { imageBase64, language, pageCount, model, userDescription } = requestSchema.parse(body);
     
-    console.log(`Analyzing drawing with ${model}: lang=${language}, pages=${pageCount}`);
+    console.log(`Analyzing drawing with ${model}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}`);
 
     // Base64 string'den data URL prefix'ini çıkar
     const base64Parts = imageBase64.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -57,11 +58,15 @@ serve(async (req) => {
     const base64Data = base64Parts[2];
 
     // Step 1: Analyze the drawing
+    const userHint = userDescription 
+      ? `\n\nKullanıcının çizim hakkındaki açıklaması: "${userDescription}"\nBu açıklamayı analiz sırasında mutlaka dikkate al ve hikayenin temasına yansıt.`
+      : "";
+
     const analysisPrompt = `Bu çocuk çizimini analiz et ve şunları belirle:
 1. Çizimdeki ana renkler (en fazla 3 renk)
 2. Çizimdeki karakterler veya nesneler (en fazla 4 karakter)
 3. Genel tema ve duygu
-4. Hikaye için uygun başlık
+4. Hikaye için uygun başlık${userHint}
 
 JSON formatında dön:
 {

@@ -42,6 +42,7 @@ const Home = () => {
   const [customTheme, setCustomTheme] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [drawingDescription, setDrawingDescription] = useState<string>("");
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
   const [language, setLanguage] = useState<"tr" | "en">("tr");
@@ -125,10 +126,11 @@ const Home = () => {
       toast.error("Lütfen bir çizim yükleyin");
       return;
     }
-    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel);
+    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined);
     if (book) {
       setSelectedImage(null);
       setPreviewUrl("");
+      setDrawingDescription("");
       toast.success("Çiziminden harika bir hikaye doğdu!");
       // Kitabı otomatik olarak aç
       setTimeout(() => {
@@ -379,12 +381,25 @@ const Home = () => {
                 <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-3 border-b border-border">
                   <p className="text-sm font-semibold text-center">Yüklenen Çizim</p>
                 </div>
-                <div className="p-4">
+                <div className="p-4 space-y-3">
                   <img
                     src={previewUrl}
                     alt="Yüklenen çizim"
                     className="w-full h-auto rounded-lg"
                   />
+                  <div className="space-y-2">
+                    <Label htmlFor="drawing-description" className="text-sm text-muted-foreground">
+                      📝 Çizimi 1-2 cümleyle anlat (isteğe bağlı)
+                    </Label>
+                    <Input
+                      id="drawing-description"
+                      placeholder="Örn: Bu bir uzay gemisi ve astronot..."
+                      value={drawingDescription}
+                      onChange={(e) => setDrawingDescription(e.target.value)}
+                      maxLength={200}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
               </div>
             )}

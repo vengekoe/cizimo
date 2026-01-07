@@ -295,7 +295,7 @@ export const useBooks = () => {
       return null;
     }
   };
-  const generateBookFromDrawing = async (imageFile: File, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview"): Promise<Book | null> => {
+  const generateBookFromDrawing = async (imageFile: File, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview", userDescription?: string): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
     try {
@@ -351,7 +351,7 @@ export const useBooks = () => {
       const { data: storyData, error: storyError } = await supabase.functions.invoke(
         "generate-story-from-drawing",
         {
-          body: { imageBase64, language, pageCount, model },
+          body: { imageBase64, language, pageCount, model, userDescription },
         }
       );
 
