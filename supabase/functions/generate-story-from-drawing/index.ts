@@ -254,8 +254,14 @@ JSON formatında dön:
 
     if (usedModel === "gpt-5-mini" || usedModel === "gpt-5.1-mini-preview") {
       analysisText = analysisData?.choices?.[0]?.message?.content;
+      if (!analysisText) {
+        console.error("GPT analysis response missing content:", JSON.stringify(analysisData).substring(0, 500));
+      }
     } else {
       analysisText = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!analysisText) {
+        console.error("Gemini analysis response missing content:", JSON.stringify(analysisData).substring(0, 500));
+      }
     }
 
     if (!analysisText) {
