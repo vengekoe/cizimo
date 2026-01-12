@@ -8,6 +8,7 @@ import SwipeInteraction from "@/components/interactions/SwipeInteraction";
 import ShakeInteraction from "@/components/interactions/ShakeInteraction";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
+import { BookInteractions } from "@/components/BookInteractions";
 import { useBooks } from "@/hooks/useBooks";
 import { useReadingStats } from "@/hooks/useReadingStats";
 import { useChildren } from "@/hooks/useChildren";
@@ -326,6 +327,9 @@ const BookReader = () => {
         bookTitle={book.title}
         bookId={book.id}
       />
+
+      {/* Like & Comment buttons */}
+      {currentPage >= 0 && <BookInteractions bookId={book.id} />}
     </div>
   );
 };
