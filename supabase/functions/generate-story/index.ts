@@ -22,6 +22,7 @@ const storySchema = z.object({
     title: z.string().min(1),
     description: z.string().min(1),
     sound: z.string().min(1),
+    textPosition: z.enum(["top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"]).optional().default("top"),
   })).min(5).max(20),
 });
 
@@ -45,6 +46,13 @@ KURALLAR:
 4) Karakterler tutarlı davransın ve her sayfada gelişsinler
 5) Son sayfada pozitif, mutlu bir final olsun
 6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
+7) Her sayfa için "textPosition" belirle - görselin ana odak noktasına göre metnin nereye yerleştirileceğini seç:
+   - "top": Ana odak altta veya ortadaysa
+   - "bottom": Ana odak üstteyse
+   - "top-left": Ana odak sağ alttaysa
+   - "top-right": Ana odak sol alttaysa
+   - "bottom-left": Ana odak sağ üstteyse
+   - "bottom-right": Ana odak sol üstteyse
 
 JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "English"}):
 {
@@ -55,7 +63,8 @@ JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "E
       "emoji": "🎨",
       "title": "${language === "tr" ? "Sayfa başlığı (Türkçe)" : "Page title (English)"}",
       "description": "${language === "tr" ? "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)" : "Detailed description (English, at least 3 sentences, continuation of story)"}",
-      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}"
+      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}",
+      "textPosition": "top"
     }
   ]
 }

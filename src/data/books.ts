@@ -1,3 +1,5 @@
+export type TextPosition = "top" | "bottom" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
 export interface BookPage {
   character: string;
   emoji: string;
@@ -5,6 +7,7 @@ export interface BookPage {
   description: string;
   sound: string;
   backgroundImage?: string;
+  textPosition?: TextPosition; // Metnin konumu
 }
 
 export interface Book {
