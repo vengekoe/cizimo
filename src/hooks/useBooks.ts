@@ -690,5 +690,97 @@ export const useBooks = () => {
     }
   };
 
-  return { books, loading, progress, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite, updateLastRead };
+  const regenerateBookImages = async (bookId: string): Promise<boolean> => {
+    if (!user) return false;
+    
+    const book = books.find(b => b.id === bookId);
+    if (!book) {
+      toast.error("Kitap bulunamadı");
+      return false;
+    }
+
+    setLoading(true);
+    setProgress({ stage: 'images', percentage: 10, message: 'Yüksek çözünürlüklü görseller oluşturuluyor...' });
+
+    try {
+      // Prepare pages data for image generation
+      const pagesData = book.pages.map(page => ({
+        character: page.character,
+        emoji: page.emoji,
+        description: page.description,
+      }));
+
+      setProgress({ stage: 'images', percentage: 20, message: `${book.pages.length} görsel yeniden oluşturuluyor...` });
+
+      // Call edge function to generate new high-resolution images
+      const { data: imageResponse, error: imageError } = await supabase.functions.invoke('generate-book-images', {
+        body: { pages: pagesData, theme: book.theme },
+      });
+
+      if (imageError) {
+        console.error('Image generation error:', imageError);
+        throw new Error(imageError.message || 'Görsel oluşturma hatası');
+      }
+
+      const generatedImages = imageResponse?.images || [];
+      console.log(`Generated ${generatedImages.filter((img: string | null) => img !== null).length} images`);
+
+      setProgress({ stage: 'saving', percentage: 60, message: 'Görseller yükleniyor...' });
+
+      // Upload new images to storage and update pages
+      const updatedPages = await Promise.all(
+        book.pages.map(async (page, index) => {
+          const newImage = generatedImages[index];
+          if (newImage) {
+            const uploadedUrl = await uploadImageToStorage(newImage, bookId, index);
+            // Add cache buster to force refresh
+            const cacheBuster = `?v=${Date.now()}`;
+            return {
+              ...page,
+              backgroundImage: uploadedUrl ? `${uploadedUrl}${cacheBuster}` : page.backgroundImage,
+            };
+          }
+          return page;
+        })
+      );
+
+      setProgress({ stage: 'saving', percentage: 80, message: 'Kitap güncelleniyor...' });
+
+      // Update book with new images
+      const updatedBook = { ...book, pages: updatedPages };
+      const updatedBooks = books.map(b => b.id === bookId ? updatedBook : b);
+
+      // Update database
+      for (let i = 0; i < updatedPages.length; i++) {
+        const page = updatedPages[i];
+        await supabase
+          .from('book_pages')
+          .update({ background_image: page.backgroundImage })
+          .eq('book_id', bookId)
+          .eq('page_number', i);
+      }
+
+      // Update local state
+      localStorage.setItem("storybooks", JSON.stringify(updatedBooks));
+      setBooks(updatedBooks);
+
+      setProgress({ stage: 'complete', percentage: 100, message: 'Görseller yenilendi!' });
+      toast.success("Görseller yüksek çözünürlükte yenilendi!");
+
+      setTimeout(() => {
+        setProgress({ stage: null, percentage: 0, message: '' });
+      }, 2000);
+
+      return true;
+    } catch (error) {
+      console.error("Görsel yenileme hatası:", error);
+      toast.error("Görseller yenilenemedi: " + (error instanceof Error ? error.message : "Bilinmeyen hata"));
+      setProgress({ stage: null, percentage: 0, message: '' });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { books, loading, progress, generateBook, generateBookFromDrawing, deleteBook, toggleFavorite, updateLastRead, regenerateBookImages };
 };

@@ -10,16 +10,18 @@ import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
 import { Button } from "@/components/ui/button";
-import { Home, Loader2 } from "lucide-react";
+import { BookGenerationProgress } from "@/components/BookGenerationProgress";
+import { Home, Loader2, RefreshCw } from "lucide-react";
 
 const BookReader = () => {
   const { bookId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { books, updateLastRead } = useBooks();
+  const { books, updateLastRead, regenerateBookImages, loading, progress } = useBooks();
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
   const [showFeedback, setShowFeedback] = useState(false);
   const [hydrating, setHydrating] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
@@ -115,8 +117,39 @@ const BookReader = () => {
     setShowFeedback(true);
   };
 
+  const handleRegenerateImages = async () => {
+    if (!bookId || isRegenerating) return;
+    setIsRegenerating(true);
+    await regenerateBookImages(bookId);
+    setIsRegenerating(false);
+    // Force page refresh to show new images
+    window.location.reload();
+  };
+
+  // Show progress overlay when regenerating
+  if (isRegenerating && progress.stage) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <BookGenerationProgress progress={progress} />
+      </div>
+    );
+  }
+
   if (currentPage === -1) {
-    return <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} coverImage={book.coverImage} />;
+    return (
+      <div className="relative">
+        <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} coverImage={book.coverImage} />
+        <Button
+          onClick={handleRegenerateImages}
+          disabled={isRegenerating}
+          className="absolute top-4 right-4 z-50 gap-2"
+          variant="secondary"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+          Görselleri Yenile
+        </Button>
+      </div>
+    );
   }
 
   const page = book.pages[currentPage];
