@@ -10,25 +10,36 @@ import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
 import { useReadingStats } from "@/hooks/useReadingStats";
+import { useChildren } from "@/hooks/useChildren";
+import { useBookShares } from "@/hooks/useBookShares";
 import { Button } from "@/components/ui/button";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
-import { Home, Loader2, RefreshCw } from "lucide-react";
+import { Home, Loader2, RefreshCw, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 const BookReader = () => {
   const { bookId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { books, updateLastRead, regenerateBookImages, loading, progress } = useBooks();
   const { startReadingSession, updateReadingSession, endReadingSession } = useReadingStats();
+  const { children, selectedChildId, getChildById } = useChildren();
+  const { isBookSharedWith, getSharedChildIds } = useBookShares();
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
   const [showFeedback, setShowFeedback] = useState(false);
   const [hydrating, setHydrating] = useState(true);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [sharedNotificationShown, setSharedNotificationShown] = useState(false);
   const sessionStartedRef = useRef(false);
   const maxPageReadRef = useRef(0);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
+  
+  // Check if this is a shared book (not owned by selected child)
+  const ownerChild = getChildById(book?.childId);
+  const isSharedBook = book && selectedChildId && book.childId !== selectedChildId && isBookSharedWith(book.id, selectedChildId);
+  const sharedWithChildren = book ? children.filter(c => getSharedChildIds(book.id).includes(c.id)) : [];
 
   // Kitap açıldığında son okunma tarihini güncelle
   useEffect(() => {
@@ -57,6 +68,17 @@ const BookReader = () => {
     const t = setTimeout(() => setHydrating(false), 700);
     return () => clearTimeout(t);
   }, [book]);
+
+  // Show shared book notification
+  useEffect(() => {
+    if (isSharedBook && ownerChild && !sharedNotificationShown) {
+      toast.info(
+        `Bu kitap ${ownerChild.avatar_emoji || "👶"} ${ownerChild.name} tarafından paylaşıldı`,
+        { duration: 4000 }
+      );
+      setSharedNotificationShown(true);
+    }
+  }, [isSharedBook, ownerChild, sharedNotificationShown]);
 
   if (!book) {
     if (hydrating) {
@@ -177,6 +199,27 @@ const BookReader = () => {
     return (
       <div className="relative">
         <BookCover onStart={handleStart} title={book.title} emoji={book.coverEmoji} coverImage={book.coverImage} />
+        
+        {/* Shared book owner badge */}
+        {isSharedBook && ownerChild && (
+          <div className="absolute top-4 left-4 z-50 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg">
+            <Share2 className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {ownerChild.avatar_emoji || "👶"} {ownerChild.name}'in kitabı
+            </span>
+          </div>
+        )}
+        
+        {/* Shared with badge (for owner) */}
+        {!isSharedBook && sharedWithChildren.length > 0 && (
+          <div className="absolute top-4 left-4 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-2 rounded-xl flex items-center gap-2 shadow-lg">
+            <Share2 className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {sharedWithChildren.map(c => c.avatar_emoji || "👶").join(" ")} ile paylaşıldı
+            </span>
+          </div>
+        )}
+        
         <Button
           onClick={handleRegenerateImages}
           disabled={isRegenerating}
