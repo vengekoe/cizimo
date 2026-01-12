@@ -174,6 +174,36 @@ export const useSubscription = () => {
     },
   });
 
+  // Change subscription tier mutation
+  const changeTier = useMutation({
+    mutationFn: async (newTier: SubscriptionTier) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      
+      // Get feature details for the new tier
+      const features = allFeatures?.find(f => f.tier === newTier);
+      if (!features) throw new Error("Invalid tier");
+
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({
+          tier: newTier,
+          monthly_credits: features.monthly_credits,
+          max_pages: features.max_pages,
+          max_children: features.max_children,
+          price_tl: features.price_tl,
+          used_credits: 0, // Reset credits on tier change
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+      
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription", user?.id] });
+    },
+  });
+
   return {
     subscription,
     subscriptionLoading,
@@ -187,6 +217,8 @@ export const useSubscription = () => {
     hasFeature,
     maxChildren,
     useCredit: useCredit.mutateAsync,
+    changeTier: changeTier.mutateAsync,
+    isChangingTier: changeTier.isPending,
     tierName: subscription ? TIER_NAMES[subscription.tier] : null,
     tierEmoji: subscription ? TIER_EMOJIS[subscription.tier] : null,
   };
