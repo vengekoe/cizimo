@@ -216,12 +216,13 @@ const BookReader = () => {
           pageNumber={currentPage + 1}
           animationType={animation}
           gradientFallback={gradientBg}
+          textPosition={page.textPosition}
         >
-          <div className="text-center space-y-3 md:space-y-4 lg:space-y-6 animate-fade-in px-4 md:px-8">
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground bg-card/60 backdrop-blur-sm px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-2xl md:rounded-3xl shadow-2xl">
+          <div className="space-y-2 md:space-y-3 lg:space-y-4 animate-fade-in max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">
+            <h2 className="font-bubble text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 bg-black/30 backdrop-blur-sm rounded-xl md:rounded-2xl">
               {page.title}
             </h2>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-foreground bg-card/50 backdrop-blur-sm px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-xl md:rounded-2xl shadow-xl max-w-sm sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto leading-relaxed">
+            <p className="font-nunito text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 bg-black/25 backdrop-blur-sm rounded-lg md:rounded-xl leading-relaxed">
               {page.description}
             </p>
           </div>
