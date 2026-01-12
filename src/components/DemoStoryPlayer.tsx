@@ -2,11 +2,16 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import forestBg from "@/assets/demo-story/page-1-forest.jpg";
+import butterflyBg from "@/assets/demo-story/page-2-butterfly.jpg";
+import starsBg from "@/assets/demo-story/page-3-stars.jpg";
+import homeBg from "@/assets/demo-story/page-4-home.jpg";
+
 interface StoryPage {
   emoji: string;
   title: string;
   text: string;
-  bgGradient: string;
+  bgImage: string;
   character: string;
 }
 
@@ -15,28 +20,28 @@ const demoStory: StoryPage[] = [
     emoji: "🌈",
     title: "Gökkuşağı Ormanı",
     text: "Bir varmış bir yokmuş, rengarenk bir ormanın derinliklerinde küçük bir tavşan yaşarmış...",
-    bgGradient: "from-green-400 via-emerald-500 to-teal-600",
+    bgImage: forestBg,
     character: "🐰",
   },
   {
     emoji: "🦋",
     title: "Kelebek Arkadaş",
     text: "Bir gün tavşan, parlak kanatları olan bir kelebekle tanışmış. Kelebek ona sihirli bir sır fısıldamış...",
-    bgGradient: "from-purple-400 via-pink-500 to-rose-500",
+    bgImage: butterflyBg,
     character: "🦋",
   },
   {
     emoji: "⭐",
     title: "Yıldız Tozu",
     text: "Birlikte gökyüzüne uçmuşlar ve yıldız tozu toplamışlar. Her toz tanesi bir dilek gerçekleştiriyormuş!",
-    bgGradient: "from-indigo-500 via-purple-500 to-pink-500",
+    bgImage: starsBg,
     character: "✨",
   },
   {
     emoji: "🏠",
     title: "Eve Dönüş",
     text: "Macera bittikten sonra tavşan evine dönmüş. Artık en iyi arkadaşı vardı ve her gün yeni maceralar yaşayacaklardı!",
-    bgGradient: "from-orange-400 via-amber-500 to-yellow-500",
+    bgImage: homeBg,
     character: "🐰",
   },
 ];
@@ -83,11 +88,19 @@ const DemoStoryPlayer = () => {
         
         {/* Book */}
         <div
-          className={`relative bg-gradient-to-br ${page.bgGradient} rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 ${
+          className={`relative rounded-3xl overflow-hidden shadow-2xl transition-all duration-500 ${
             isAnimating ? "opacity-0 scale-95" : "opacity-100 scale-100"
           }`}
           style={{ aspectRatio: "3/4" }}
         >
+          {/* Background Image */}
+          <img
+            src={page.bgImage}
+            alt={page.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
           {/* Page content */}
           <div className="absolute inset-0 flex flex-col p-6 sm:p-8">
             {/* Header */}
