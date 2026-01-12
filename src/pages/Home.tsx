@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useAuth } from "@/hooks/useAuth";
+import { useChildren } from "@/hooks/useChildren";
 import { Button } from "@/components/ui/button";
-import { Trash2, Star, Clock, Paintbrush } from "lucide-react";
+import { Trash2, Star, Clock, Paintbrush, Baby } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -22,6 +24,7 @@ import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 const Home = () => {
   const { books, loading, progress, deleteBook, toggleFavorite } = useBooks();
   const { user, loading: authLoading } = useAuth();
+  const { children, selectedChildId, setSelectedChildId } = useChildren();
   const navigate = useNavigate();
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
@@ -32,7 +35,12 @@ const Home = () => {
     }
   }, [user, authLoading, navigate]);
 
-  const sortedBooks = [...books].sort((a, b) => {
+  // Filter books by selected child
+  const filteredBooks = selectedChildId 
+    ? books.filter(book => book.childId === selectedChildId)
+    : books;
+
+  const sortedBooks = [...filteredBooks].sort((a, b) => {
     if (sortBy === "favorites") {
       if (a.isFavorite && !b.isFavorite) return -1;
       if (!a.isFavorite && b.isFavorite) return 1;
@@ -51,6 +59,8 @@ const Home = () => {
     }
   };
 
+  const selectedChild = children.find(c => c.id === selectedChildId);
+
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-primary/5">
       <BookGenerationProgress progress={progress} />
@@ -66,10 +76,35 @@ const Home = () => {
           </p>
         </div>
 
+        {/* Çocuk Filtresi */}
+        {children.length > 0 && (
+          <div className="bg-card rounded-2xl p-3 border border-border mb-4">
+            <div className="flex items-center gap-2">
+              <Baby className="w-4 h-4 text-primary" />
+              <Select value={selectedChildId || "all"} onValueChange={(v) => setSelectedChildId(v === "all" ? null : v)}>
+                <SelectTrigger className="flex-1 h-9">
+                  <SelectValue placeholder="Tüm kitaplar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">📚 Tüm Kitaplar</SelectItem>
+                  {children.map((child) => (
+                    <SelectItem key={child.id} value={child.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{child.avatar_emoji || "👶"}</span>
+                        <span>{child.name}'in Kitapları</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {/* Sıralama */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">
-            Kitaplarım ({books.length})
+            {selectedChild ? `${selectedChild.name}'in Kitapları` : "Kitaplarım"} ({sortedBooks.length})
           </h2>
           <div className="flex gap-2">
             <Button
@@ -94,10 +129,12 @@ const Home = () => {
         </div>
 
         {/* Kitap Listesi */}
-        {books.length === 0 ? (
+        {sortedBooks.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">📖</div>
-            <h3 className="text-xl font-semibold mb-2">Henüz kitap yok</h3>
+            <h3 className="text-xl font-semibold mb-2">
+              {selectedChild ? `${selectedChild.name} için henüz kitap yok` : "Henüz kitap yok"}
+            </h3>
             <p className="text-muted-foreground mb-4">
               İlk hikayenizi oluşturmak için aşağıdaki + butonuna tıklayın
             </p>

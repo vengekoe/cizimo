@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
+import { useChildren } from "@/hooks/useChildren";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, ArrowLeft, Camera, ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, ArrowLeft, Camera, ImageIcon, Baby } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -14,6 +15,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 const CreateFromDrawing = () => {
   const { loading, progress, generateBookFromDrawing } = useBooks();
   const { profile } = useProfile();
+  const { children, selectedChildId, setSelectedChildId, getSelectedChild } = useChildren();
   const navigate = useNavigate();
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -48,20 +50,29 @@ const CreateFromDrawing = () => {
       toast.error("Lütfen bir çizim yükleyin");
       return;
     }
+    
+    const selectedChild = getSelectedChild();
+    if (!selectedChild) {
+      toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
+      return;
+    }
+    
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
     
-    // Build profile data for personalization
-    const profileData = profile ? {
-      displayName: profile.display_name,
-      age: profile.age,
-      gender: profile.gender,
-      favoriteColor: profile.favorite_color,
-      favoriteAnimal: profile.favorite_animal,
-      favoriteTeam: profile.favorite_team,
-      favoriteToy: profile.favorite_toy,
-      favoriteSuperhero: profile.favorite_superhero,
-      favoriteCartoon: profile.favorite_cartoon,
-    } : undefined;
+    // Build profile data from selected child
+    const profileData = {
+      childId: selectedChild.id,
+      childName: selectedChild.name,
+      displayName: selectedChild.name,
+      age: selectedChild.age,
+      gender: selectedChild.gender,
+      favoriteColor: selectedChild.favorite_color,
+      favoriteAnimal: selectedChild.favorite_animal,
+      favoriteTeam: selectedChild.favorite_team,
+      favoriteToy: selectedChild.favorite_toy,
+      favoriteSuperhero: selectedChild.favorite_superhero,
+      favoriteCartoon: selectedChild.favorite_cartoon,
+    };
     
     const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined, profileData);
     if (book) {
@@ -93,6 +104,45 @@ const CreateFromDrawing = () => {
             </p>
           </div>
         </div>
+
+        {/* Çocuk Seçimi */}
+        {children.length === 0 ? (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Baby className="w-6 h-6 text-amber-600" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">Çocuk profili bulunamadı</p>
+                <p className="text-xs text-muted-foreground">Kişiselleştirilmiş hikayeler için çocuk ekleyin</p>
+              </div>
+              <Link to="/profile">
+                <Button size="sm" variant="outline">Ekle</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-card rounded-2xl p-4 border border-border mb-4">
+            <div className="flex items-center gap-3">
+              <Baby className="w-5 h-5 text-primary" />
+              <Label className="text-sm font-medium">Hikaye kimin için?</Label>
+            </div>
+            <Select value={selectedChildId || ""} onValueChange={setSelectedChildId}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Çocuk seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {children.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{child.avatar_emoji || "👶"}</span>
+                      <span>{child.name}</span>
+                      {child.age && <span className="text-muted-foreground text-xs">({child.age} yaş)</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Ayarlar */}
         <div className="bg-card rounded-2xl p-4 border border-border mb-6">
@@ -214,7 +264,7 @@ const CreateFromDrawing = () => {
         {selectedImage && (
           <Button
             onClick={handleGenerate}
-            disabled={loading}
+            disabled={loading || children.length === 0}
             className="w-full bg-gradient-to-r from-accent to-primary text-white py-6 text-lg rounded-2xl"
           >
             {loading ? (

@@ -66,6 +66,7 @@ export type Database = {
       }
       books: {
         Row: {
+          child_id: string | null
           cover_emoji: string
           cover_image: string | null
           created_at: string
@@ -79,6 +80,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          child_id?: string | null
           cover_emoji: string
           cover_image?: string | null
           created_at?: string
@@ -92,6 +94,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          child_id?: string | null
           cover_emoji?: string
           cover_image?: string | null
           created_at?: string
@@ -101,6 +104,65 @@ export type Database = {
           last_read_at?: string | null
           theme?: string
           title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "books_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      children: {
+        Row: {
+          age: number | null
+          avatar_emoji: string | null
+          created_at: string
+          favorite_animal: string | null
+          favorite_cartoon: string | null
+          favorite_color: string | null
+          favorite_superhero: string | null
+          favorite_team: string | null
+          favorite_toy: string | null
+          gender: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          avatar_emoji?: string | null
+          created_at?: string
+          favorite_animal?: string | null
+          favorite_cartoon?: string | null
+          favorite_color?: string | null
+          favorite_superhero?: string | null
+          favorite_team?: string | null
+          favorite_toy?: string | null
+          gender?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          avatar_emoji?: string | null
+          created_at?: string
+          favorite_animal?: string | null
+          favorite_cartoon?: string | null
+          favorite_color?: string | null
+          favorite_superhero?: string | null
+          favorite_team?: string | null
+          favorite_toy?: string | null
+          gender?: string | null
+          id?: string
+          name?: string
           updated_at?: string
           user_id?: string
         }

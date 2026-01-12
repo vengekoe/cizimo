@@ -19,6 +19,8 @@ export interface Book {
   isFromDrawing?: boolean; // Çizimden oluşturulmuş mu?
   isFavorite?: boolean; // Favori mi?
   lastReadAt?: string; // Son okunma tarihi
+  childId?: string; // Hangi çocuk için oluşturuldu
+  childName?: string; // Çocuğun adı (display için)
   pages: BookPage[];
 }
 

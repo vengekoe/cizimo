@@ -69,16 +69,17 @@ export const useBooks = () => {
               return null;
             }
 
-            return {
-              id: bookData.id,
-              title: bookData.title,
-              theme: bookData.theme,
-              coverEmoji: bookData.cover_emoji,
-              coverImage: bookData.cover_image || undefined,
-              isFromDrawing: bookData.is_from_drawing || false,
-              isFavorite: bookData.is_favorite || false,
-              lastReadAt: bookData.last_read_at || undefined,
-              pages: pagesData.map(page => ({
+              return {
+                id: bookData.id,
+                title: bookData.title,
+                theme: bookData.theme,
+                coverEmoji: bookData.cover_emoji,
+                coverImage: bookData.cover_image || undefined,
+                isFromDrawing: bookData.is_from_drawing || false,
+                isFavorite: bookData.is_favorite || false,
+                lastReadAt: bookData.last_read_at || undefined,
+                childId: (bookData as any).child_id || undefined,
+                pages: pagesData.map(page => ({
                 character: page.character,
                 emoji: page.emoji,
                 title: page.title,
@@ -138,6 +139,7 @@ export const useBooks = () => {
             is_from_drawing: book.isFromDrawing || false,
             is_favorite: book.isFavorite || false,
             last_read_at: book.lastReadAt,
+            child_id: book.childId,
           });
 
         if (bookError) {
@@ -204,6 +206,7 @@ export const useBooks = () => {
             is_from_drawing: book.isFromDrawing || false,
             is_favorite: book.isFavorite || false,
             last_read_at: book.lastReadAt,
+            child_id: book.childId,
           }, {
             onConflict: 'id'
           });
@@ -350,6 +353,8 @@ export const useBooks = () => {
   };
 
   interface ProfileForStory {
+    childId?: string;
+    childName?: string;
     displayName?: string | null;
     age?: number | null;
     gender?: string | null;
@@ -571,6 +576,8 @@ export const useBooks = () => {
         coverEmoji: storyData.story.pages[0]?.emoji || "🎨",
         coverImage: coverImageUrl || undefined,
         isFromDrawing: true,
+        childId: profileData?.childId,
+        childName: profileData?.childName,
         pages,
       };
 
@@ -765,6 +772,8 @@ export const useBooks = () => {
         theme,
         coverEmoji: storyData.story.pages[0]?.emoji || "📖",
         coverImage: coverImageUrl || undefined,
+        childId: profileData?.childId,
+        childName: profileData?.childName,
         pages,
       };
 
