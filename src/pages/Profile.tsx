@@ -252,9 +252,24 @@ const Profile = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro (Önerilen)</SelectItem>
-                      <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
-                      <SelectItem value="gpt-5.1-mini-preview">✨ GPT-5.1 Mini Preview</SelectItem>
+                      <SelectItem value="gemini-3-pro-preview">
+                        <div className="flex flex-col">
+                          <span>🤖 Google Gemini 3 Pro Preview</span>
+                          <span className="text-xs text-muted-foreground">Önerilen - Yeni nesil, güçlü hikaye anlatımı</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gpt-5-mini">
+                        <div className="flex flex-col">
+                          <span>⚡ OpenAI GPT-5 Mini</span>
+                          <span className="text-xs text-muted-foreground">Hızlı ve verimli, kaliteli hikayeler</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gpt-5.1-mini-preview">
+                        <div className="flex flex-col">
+                          <span>✨ OpenAI GPT-5.1 Mini Preview</span>
+                          <span className="text-xs text-muted-foreground">En yeni - Gelişmiş akıl yürütme</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
