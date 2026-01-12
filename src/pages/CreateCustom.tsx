@@ -32,7 +32,20 @@ const CreateCustom = () => {
       return;
     }
     
-    const book = await generateBook(customTheme, language, pageCount, aiModel);
+    // Build profile data for personalization
+    const profileData = profile ? {
+      displayName: profile.display_name,
+      age: profile.age,
+      gender: profile.gender,
+      favoriteColor: profile.favorite_color,
+      favoriteAnimal: profile.favorite_animal,
+      favoriteTeam: profile.favorite_team,
+      favoriteToy: profile.favorite_toy,
+      favoriteSuperhero: profile.favorite_superhero,
+      favoriteCartoon: profile.favorite_cartoon,
+    } : undefined;
+    
+    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData);
     if (book) {
       setCustomTheme("");
       toast.success("Yeni kitap hazır!");

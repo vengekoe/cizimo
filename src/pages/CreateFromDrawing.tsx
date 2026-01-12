@@ -49,7 +49,21 @@ const CreateFromDrawing = () => {
       return;
     }
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
-    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined);
+    
+    // Build profile data for personalization
+    const profileData = profile ? {
+      displayName: profile.display_name,
+      age: profile.age,
+      gender: profile.gender,
+      favoriteColor: profile.favorite_color,
+      favoriteAnimal: profile.favorite_animal,
+      favoriteTeam: profile.favorite_team,
+      favoriteToy: profile.favorite_toy,
+      favoriteSuperhero: profile.favorite_superhero,
+      favoriteCartoon: profile.favorite_cartoon,
+    } : undefined;
+    
+    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined, profileData);
     if (book) {
       setSelectedImage(null);
       setPreviewUrl("");
