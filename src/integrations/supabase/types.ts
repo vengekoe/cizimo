@@ -112,6 +112,13 @@ export type Database = {
             foreignKeyName: "books_child_id_fkey"
             columns: ["child_id"]
             isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "books_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
             referencedRelation: "children"
             referencedColumns: ["id"]
           },
@@ -258,9 +265,72 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_sessions: {
+        Row: {
+          book_id: string
+          child_id: string | null
+          created_at: string
+          duration_seconds: number
+          ended_at: string | null
+          id: string
+          pages_read: number
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          child_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          pages_read?: number
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          child_id?: string | null
+          created_at?: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          pages_read?: number
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sessions_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "reading_sessions_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      child_reading_stats: {
+        Row: {
+          avatar_emoji: string | null
+          books_read: number | null
+          child_id: string | null
+          child_name: string | null
+          total_pages_read: number | null
+          total_reading_seconds: number | null
+          total_sessions: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

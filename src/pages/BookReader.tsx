@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import BookCover from "@/components/BookCover";
 import BookPage from "@/components/BookPage";
@@ -9,6 +9,7 @@ import ShakeInteraction from "@/components/interactions/ShakeInteraction";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { useBooks } from "@/hooks/useBooks";
+import { useReadingStats } from "@/hooks/useReadingStats";
 import { Button } from "@/components/ui/button";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import { Home, Loader2, RefreshCw } from "lucide-react";
@@ -17,11 +18,14 @@ const BookReader = () => {
   const { bookId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { books, updateLastRead, regenerateBookImages, loading, progress } = useBooks();
+  const { startReadingSession, updateReadingSession, endReadingSession } = useReadingStats();
   const [currentPage, setCurrentPage] = useState(-1);
   const [pageDirection, setPageDirection] = useState<"forward" | "backward">("forward");
   const [showFeedback, setShowFeedback] = useState(false);
   const [hydrating, setHydrating] = useState(true);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const sessionStartedRef = useRef(false);
+  const maxPageReadRef = useRef(0);
 
   const book = books.find((b) => b.id === bookId);
   const totalPages = book?.pages.length || 0;
@@ -83,18 +87,31 @@ const BookReader = () => {
     );
   }
 
-  const handleStart = () => {
+  const handleStart = async () => {
     setPageDirection("forward");
     setCurrentPage(0);
     setSearchParams({ page: "0" });
+    
+    // Start reading session
+    if (book && !sessionStartedRef.current) {
+      sessionStartedRef.current = true;
+      maxPageReadRef.current = 1;
+      await startReadingSession(book.id, book.childId || null);
+    }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentPage < totalPages - 1) {
       setPageDirection("forward");
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       setSearchParams({ page: nextPage.toString() });
+      
+      // Track max page read
+      if (nextPage + 1 > maxPageReadRef.current) {
+        maxPageReadRef.current = nextPage + 1;
+        await updateReadingSession(maxPageReadRef.current);
+      }
     }
   };
 
@@ -107,15 +124,36 @@ const BookReader = () => {
     }
   };
 
-  const handleHome = () => {
+  const handleHome = async () => {
     setPageDirection("backward");
     setCurrentPage(-1);
     setSearchParams({});
+    
+    // End reading session when going back to cover
+    if (sessionStartedRef.current) {
+      await endReadingSession();
+      sessionStartedRef.current = false;
+      maxPageReadRef.current = 0;
+    }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    // Mark all pages as read
+    if (book) {
+      maxPageReadRef.current = totalPages;
+      await updateReadingSession(maxPageReadRef.current);
+    }
     setShowFeedback(true);
   };
+
+  // End session when leaving page
+  useEffect(() => {
+    return () => {
+      if (sessionStartedRef.current) {
+        endReadingSession();
+      }
+    };
+  }, []);
 
   const handleRegenerateImages = async () => {
     if (!bookId || isRegenerating) return;
