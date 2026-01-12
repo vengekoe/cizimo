@@ -303,7 +303,7 @@ JSON formatında dön:
     }
 
     // Step 2: Generate story based on analysis (with fallback)
-    const storyPrompt = `Bu çizim analizine dayanarak ${pageCount} sayfalık tutarlı bir çocuk hikayesi oluştur (${language === "tr" ? "TÜRKÇE" : "ENGLISH"}):
+    const storyPrompt = `Bu çizim analizine dayanarak ${pageCount} sayfalık TUTARLI ve AKICI bir çocuk hikayesi oluştur (${language === "tr" ? "TÜRKÇE" : "ENGLISH"}):
 
 Çizim Analizi:
 - Renkler: ${analysis.colors.join(", ")}
@@ -312,27 +312,42 @@ JSON formatında dön:
 - Duygu: ${analysis.mood}
 - Başlık: ${analysis.title}
 
-KURALLAR:
-1) Hikaye ${pageCount} sayfadan oluşmalı
-2) Her sayfa bir öncekinin doğal devamı olmalı (bağımsız cümleler değil)
-3) Başlangıç-gelişme-sonuç yapısı olmalı
-4) Pozitif, mutlu bir final olmalı
-5) Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalı
+HİKAYE YAPISI (ÇOK ÖNEMLİ):
+1) Önce BÜTÜN bir hikaye kurgula (tek seferde baştan sona)
+2) Bir çatışma/problem ile başla, gelişme süreci yaz, mutlu sonla bitir
+3) Sonra bu hikayeyi ${pageCount} sayfaya böl
+
+SAYFA GEÇİŞLERİ (KRİTİK):
+- Her sayfa bir öncekinin DOĞRUDAN devamı olmalı
+- "Bu sırada...", "Bir süre sonra...", "Tam o anda..." gibi BAĞLAYICI ifadeler kullan
+- Her sayfanın son cümlesi bir sonraki sayfaya merak uyandırmalı
+- Karakterler aynı kalmalı ve tutarlı davranmalı
+- Olaylar mantıksal bir sıra ile ilerlemeli
+
+SAYFA İÇERİĞİ:
+1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
+2) Her sayfanın açıklaması EN AZ 4-5 cümle olmalı
+3) Duygular, düşünceler ve diyaloglar ekle
+4) Son sayfada hikaye tam olarak sonlanmalı
+5) Pozitif, mutlu bir final olmalı
 ${storyPersonalization}
 
 JSON FORMATINDA:
 {
   "title": "${analysis.title}",
+  "theme": "Hikayenin genel teması - 1-2 cümle",
   "pages": [
     {
       "character": "Karakter",
       "emoji": "🎨",
-      "title": "Sayfa başlığı",
-      "description": "En az 3 cümle, hikayenin devamı",
+      "title": "Sayfa başlığı - çekici ve merak uyandırıcı",
+      "description": "Detaylı açıklama (4-5 cümle, diyalog dahil, bir önceki sayfanın devamı)",
       "sound": "bee/bird/cricket/frog"
     }
   ]
-}`;
+}
+
+HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birbirine bağlı!`;
 
     let storyResponse: Response | null = null;
     let storyModel: string = usedModel;
