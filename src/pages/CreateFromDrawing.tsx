@@ -3,26 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
+import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Sparkles, ArrowLeft, Camera, ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, ArrowLeft, Camera, ImageIcon, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const CreateFromDrawing = () => {
   const { loading, progress, generateBookFromDrawing } = useBooks();
   const { profile } = useProfile();
   const { children, getSelectedChild } = useChildren();
+  const { createTask } = useBackgroundTasks();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [drawingDescription, setDrawingDescription] = useState<string>("");
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [isStartingBackground, setIsStartingBackground] = useState(false);
   const [language, setLanguage] = useState<"tr" | "en">(
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
@@ -43,6 +49,87 @@ const CreateFromDrawing = () => {
         }, 800);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const getImageBase64 = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleGenerateBackground = async () => {
+    if (!selectedImage || !user) {
+      toast.error("Lütfen bir çizim yükleyin");
+      return;
+    }
+    
+    const selectedChild = getSelectedChild();
+    if (!selectedChild) {
+      toast.error("Lütfen önce bir çocuk seçin");
+      return;
+    }
+
+    setIsStartingBackground(true);
+
+    try {
+      const imageBase64 = await getImageBase64(selectedImage);
+      
+      const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+      const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
+      
+      const inputData = {
+        imageBase64,
+        language,
+        pageCount,
+        model: aiModel,
+        imageModel,
+        userDescription: drawingDescription.trim() || undefined,
+        category,
+        userId: user.id,
+        profile: {
+          childId: selectedChild.id,
+          childName: selectedChild.name,
+          displayName: selectedChild.name,
+          age: selectedChild.age,
+          gender: selectedChild.gender,
+          favoriteColor: selectedChild.favorite_color,
+          favoriteAnimal: selectedChild.favorite_animal,
+          favoriteTeam: selectedChild.favorite_team,
+          favoriteToy: selectedChild.favorite_toy,
+          favoriteSuperhero: selectedChild.favorite_superhero,
+          favoriteCartoon: selectedChild.favorite_cartoon,
+        },
+      };
+
+      // Create background task
+      const task = await createTask(inputData, selectedChild.id);
+      
+      if (task) {
+        // Start processing in background (fire and forget)
+        supabase.functions.invoke("process-background-task", {
+          body: { taskId: task.id },
+        }).catch(console.error);
+
+        toast.success("🎨 Hikaye arka planda oluşturuluyor!", {
+          description: "Hazır olduğunda sizi bilgilendireceğiz.",
+          duration: 5000,
+        });
+
+        // Reset form and navigate home
+        setSelectedImage(null);
+        setPreviewUrl("");
+        setDrawingDescription("");
+        navigate("/home");
+      }
+    } catch (error) {
+      console.error("Background task error:", error);
+      toast.error("Bir hata oluştu");
+    } finally {
+      setIsStartingBackground(false);
     }
   };
 
@@ -201,23 +288,47 @@ const CreateFromDrawing = () => {
         )}
 
         {selectedImage && (
-          <Button
-            onClick={handleGenerate}
-            disabled={loading || children.length === 0}
-            className="w-full bg-gradient-to-r from-accent to-primary text-white py-6 text-lg rounded-2xl"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Hikaye Oluşturuluyor...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-5 w-5" />
-                Hikayeyi Oluştur
-              </>
-            )}
-          </Button>
+          <div className="space-y-3">
+            <Button
+              onClick={handleGenerate}
+              disabled={loading || isStartingBackground || children.length === 0}
+              className="w-full bg-gradient-to-r from-accent to-primary text-white py-6 text-lg rounded-2xl"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Hikaye Oluşturuluyor...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Hikayeyi Oluştur
+                </>
+              )}
+            </Button>
+            
+            <Button
+              onClick={handleGenerateBackground}
+              disabled={loading || isStartingBackground || children.length === 0}
+              variant="outline"
+              className="w-full py-5 text-base rounded-2xl border-2 border-dashed"
+            >
+              {isStartingBackground ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Başlatılıyor...
+                </>
+              ) : (
+                <>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Arka Planda Oluştur
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Arka planda oluştur: Sayfayı kapatın, hazır olunca bildirim alın
+            </p>
+          </div>
         )}
       </div>
 

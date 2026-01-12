@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import CreateFromDrawing from "./pages/CreateFromDrawing";
 import CreateFromTheme from "./pages/CreateFromTheme";
 import CreateCustom from "./pages/CreateCustom";
+import { BackgroundTaskIndicator } from "./components/BackgroundTaskIndicator";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/create/custom" element={<CreateCustom />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <BackgroundTaskIndicator />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
