@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3, Crown, Sparkles, Lock } from "lucide-react";
+import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3, Crown, Sparkles, Lock, Shield } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ChildCard } from "@/components/ChildCard";
 import { ChildStatsCard } from "@/components/ChildStatsCard";
@@ -97,10 +97,18 @@ const Profile = () => {
             </h1>
             <SubscriptionBadge />
           </div>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Çıkış
-          </Button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
+                <Shield className="w-4 h-4 mr-2" />
+                Admin
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Çıkış
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="children" className="space-y-4">

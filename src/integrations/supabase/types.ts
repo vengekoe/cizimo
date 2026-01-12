@@ -702,6 +702,55 @@ export type Database = {
       }
     }
     Functions: {
+      admin_get_all_users: {
+        Args: never
+        Returns: {
+          books_count: number
+          children_count: number
+          current_period_end: string
+          display_name: string
+          email: string
+          is_admin: boolean
+          last_sign_in_at: string
+          max_children: number
+          max_pages: number
+          monthly_credits: number
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          total_reading_seconds: number
+          trial_ends_at: string
+          used_credits: number
+          user_created_at: string
+          user_id: string
+        }[]
+      }
+      admin_get_statistics: {
+        Args: never
+        Returns: {
+          books_this_month: number
+          new_users_this_month: number
+          total_books: number
+          total_children: number
+          total_reading_hours: number
+          total_reading_sessions: number
+          total_users: number
+          users_by_tier: Json
+        }[]
+      }
+      admin_reset_user_credits: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
+      admin_toggle_user_role: {
+        Args: { _make_admin: boolean; _target_user_id: string }
+        Returns: boolean
+      }
+      admin_update_user_subscription: {
+        Args: {
+          _target_user_id: string
+          _tier: Database["public"]["Enums"]["subscription_tier"]
+        }
+        Returns: boolean
+      }
       can_create_story: { Args: { _user_id: string }; Returns: boolean }
       get_remaining_credits: { Args: { _user_id: string }; Returns: number }
       get_user_tier: {
