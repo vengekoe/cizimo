@@ -217,11 +217,11 @@ const BookReader = () => {
           animationType={animation}
           gradientFallback={gradientBg}
         >
-          <div className="text-center space-y-4 md:space-y-6 lg:space-y-8 animate-fade-in px-4 md:px-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground bg-card/60 backdrop-blur-sm px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4 rounded-2xl md:rounded-3xl shadow-2xl">
+          <div className="text-center space-y-3 md:space-y-4 lg:space-y-6 animate-fade-in px-4 md:px-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground bg-card/60 backdrop-blur-sm px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-2xl md:rounded-3xl shadow-2xl">
               {page.title}
             </h2>
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-foreground bg-card/50 backdrop-blur-sm px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl md:rounded-2xl shadow-xl max-w-sm sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-foreground bg-card/50 backdrop-blur-sm px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-xl md:rounded-2xl shadow-xl max-w-sm sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto leading-relaxed">
               {page.description}
             </p>
           </div>
