@@ -115,15 +115,19 @@ const Home = () => {
                   <SelectValue placeholder="Tüm kitaplar" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">📚 Tüm Kitaplar</SelectItem>
-                  {children.map((child) => (
-                    <SelectItem key={child.id} value={child.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{child.avatar_emoji || "👶"}</span>
-                        <span>{child.name}'in Kitapları</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">📚 Tüm Kitaplar ({books.length})</SelectItem>
+                  {children.map((child) => {
+                    const childSharedBooks = getSharedBooksForChild(child.id);
+                    const childBookCount = books.filter(b => b.childId === child.id || childSharedBooks.includes(b.id)).length;
+                    return (
+                      <SelectItem key={child.id} value={child.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{child.avatar_emoji || "👶"}</span>
+                          <span>{child.name}'in Kitapları ({childBookCount})</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -143,10 +147,14 @@ const Home = () => {
                 }`}
               >
                 📚 Tümü
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  selectedCategory === null ? "bg-white/20" : "bg-background"
+                }`}>
+                  {filteredBooks.length === books.length ? books.length : filteredBooks.length}
+                </span>
               </button>
               {categories.map((cat) => {
                 const count = getCategoryCount(cat.id);
-                if (count === 0) return null;
                 return (
                   <button
                     key={cat.id}
@@ -154,8 +162,11 @@ const Home = () => {
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${
                       selectedCategory === cat.id
                         ? `bg-gradient-to-r ${getCategoryColor(cat.id)} text-white`
-                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                        : count === 0
+                          ? "bg-muted/50 text-muted-foreground/50"
+                          : "bg-muted hover:bg-muted/80 text-muted-foreground"
                     }`}
+                    disabled={count === 0}
                   >
                     <span>{cat.emoji}</span>
                     <span>{cat.name}</span>
