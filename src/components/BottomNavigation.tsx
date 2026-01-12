@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, Plus, User, Paintbrush, Palette, Sparkles } from "lucide-react";
+import { BookOpen, Plus, User, Paintbrush, Palette, Sparkles, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   id: string;
@@ -22,6 +22,7 @@ const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems: NavItem[] = [
     {
@@ -74,13 +75,16 @@ const BottomNavigation = () => {
   const handleNavClick = (item: NavItem) => {
     if (item.hasSubmenu) {
       setIsCreateOpen(true);
+      setIsMenuOpen(false);
     } else if (item.path) {
       navigate(item.path);
+      setIsMenuOpen(false);
     }
   };
 
   const handleCreateOption = (path: string) => {
     setIsCreateOpen(false);
+    setIsMenuOpen(false);
     navigate(path);
   };
 
@@ -95,6 +99,41 @@ const BottomNavigation = () => {
 
   return (
     <>
+      {/* Desktop/Tablet Header Navigation */}
+      <nav className="hidden lg:flex fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-b border-border h-16">
+        <div className="container mx-auto px-4 flex items-center justify-between">
+          {/* Logo */}
+          <button 
+            onClick={() => navigate("/home")}
+            className="flex items-center gap-2 font-bold text-xl text-primary"
+          >
+            📚 Hikaye Kitaplığım
+          </button>
+
+          {/* Nav Items */}
+          <div className="flex items-center gap-2">
+            {navItems.map((item) => (
+              <Button
+                key={item.id}
+                variant={(item.id === "create" ? isCreateActive : isActive(item)) ? "default" : "ghost"}
+                onClick={() => handleNavClick(item)}
+                className={cn(
+                  "gap-2",
+                  item.id === "create" && "bg-gradient-to-r from-primary to-accent text-white hover:opacity-90"
+                )}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Desktop spacer */}
+      <div className="hidden lg:block h-16" />
+
+      {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom lg:hidden">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.map((item) => (
@@ -124,6 +163,7 @@ const BottomNavigation = () => {
         </div>
       </nav>
 
+      {/* Create Options Sheet */}
       <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <SheetContent side="bottom" className="rounded-t-3xl">
           <SheetHeader className="mb-4">
