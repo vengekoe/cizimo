@@ -14,10 +14,12 @@ const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradie
   return (
     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
       {backgroundImage ? (
-        <img 
-          src={backgroundImage}
-          alt="Story illustration"
-          className="absolute inset-0 w-full h-full object-cover"
+        <div 
+          className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+          style={{ 
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundColor: 'hsl(var(--background))'
+          }}
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${gradientFallback || 'from-primary/20 via-secondary/20 to-accent/20'}`} />

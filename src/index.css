@@ -122,82 +122,49 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Kitap sayfası çevirme - ileri git (sağdan sola) */
   .page-turn-enter {
-    animation: page-flip-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    animation: page-turn-in 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
     transform-origin: left center;
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
   }
   
-  /* Kitap sayfası çevirme - geri git (soldan sağa) */
   .page-turn-exit {
-    animation: page-flip-out 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-    transform-origin: left center;
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
+    animation: page-turn-out 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transform-origin: right center;
   }
   
-  @keyframes page-flip-in {
+  @keyframes page-turn-in {
     0% {
-      transform: perspective(2000px) rotateY(90deg);
+      transform: perspective(1200px) rotateY(-100deg) translateX(-50%) scale(0.95);
       opacity: 0;
-      box-shadow: -20px 0 40px rgba(0, 0, 0, 0.3);
+      filter: brightness(0.7);
     }
-    30% {
-      opacity: 0.6;
+    50% {
+      transform: perspective(1200px) rotateY(-50deg) translateX(-20%) scale(0.98);
+      opacity: 0.5;
+      filter: brightness(0.85);
     }
     100% {
-      transform: perspective(2000px) rotateY(0deg);
+      transform: perspective(1200px) rotateY(0deg) translateX(0) scale(1);
       opacity: 1;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      filter: brightness(1);
     }
   }
   
-  @keyframes page-flip-out {
+  @keyframes page-turn-out {
     0% {
-      transform: perspective(2000px) rotateY(0deg);
+      transform: perspective(1200px) rotateY(0deg) translateX(0) scale(1);
       opacity: 1;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      filter: brightness(1);
     }
-    70% {
-      opacity: 0.6;
+    50% {
+      transform: perspective(1200px) rotateY(50deg) translateX(20%) scale(0.98);
+      opacity: 0.5;
+      filter: brightness(0.85);
     }
     100% {
-      transform: perspective(2000px) rotateY(-90deg);
+      transform: perspective(1200px) rotateY(100deg) translateX(50%) scale(0.95);
       opacity: 0;
-      box-shadow: 20px 0 40px rgba(0, 0, 0, 0.3);
-    }
-  }
-  
-  /* Ek yumuşak geçiş animasyonu */
-  .page-slide-enter {
-    animation: slide-fade-in 0.5s ease-out forwards;
-  }
-  
-  .page-slide-exit {
-    animation: slide-fade-out 0.5s ease-out forwards;
-  }
-  
-  @keyframes slide-fade-in {
-    0% {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    100% {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes slide-fade-out {
-    0% {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    100% {
-      transform: translateX(-100%);
-      opacity: 0;
+      filter: brightness(0.7);
     }
   }
   
