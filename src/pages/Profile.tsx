@@ -265,8 +265,18 @@ const Profile = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gemini-2.5-flash-image">⚡ Nano Banana (Hızlı)</SelectItem>
-                      <SelectItem value="gemini-3-pro-image">🎨 Gemini 3 Pro (Kaliteli)</SelectItem>
+                      <SelectItem value="gemini-2.5-flash-image">
+                        <div className="flex flex-col">
+                          <span>⚡ Google Gemini 2.5 Flash Image</span>
+                          <span className="text-xs text-muted-foreground">Nano Banana - Hızlı, verimli görsel üretimi</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gemini-3-pro-image">
+                        <div className="flex flex-col">
+                          <span>🎨 Google Gemini 3 Pro Image Preview</span>
+                          <span className="text-xs text-muted-foreground">Yeni nesil - Yüksek kaliteli, detaylı görseller</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
