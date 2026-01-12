@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, ArrowLeft, Camera } from "lucide-react";
+import { Loader2, Sparkles, ArrowLeft, Camera, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -19,6 +19,7 @@ const CreateFromDrawing = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [drawingDescription, setDrawingDescription] = useState<string>("");
+  const [isImageLoading, setIsImageLoading] = useState(false);
   const [language, setLanguage] = useState<"tr" | "en">(
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
@@ -27,9 +28,18 @@ const CreateFromDrawing = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setIsImageLoading(true);
       setSelectedImage(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Simulate a small delay for better UX
+        setTimeout(() => {
+          setPreviewUrl(URL.createObjectURL(file));
+          setIsImageLoading(false);
+        }, 800);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -106,7 +116,7 @@ const CreateFromDrawing = () => {
         {/* Çizim Yükleme */}
         <label htmlFor="drawing-upload" className="block cursor-pointer mb-6">
           <div className={`border-2 border-dashed rounded-2xl hover:border-primary hover:bg-primary/5 transition-all ${
-            selectedImage 
+            selectedImage || isImageLoading
               ? "border-primary/30 p-3" 
               : "border-primary/50 p-8"
           }`}>
@@ -116,29 +126,54 @@ const CreateFromDrawing = () => {
               onChange={handleImageChange}
               className="hidden"
               id="drawing-upload"
-              disabled={loading}
+              disabled={loading || isImageLoading}
             />
-            <div className={`flex items-center gap-3 ${selectedImage ? "" : "flex-col gap-4"}`}>
-              <div className={`rounded-full bg-primary/10 flex items-center justify-center ${
-                selectedImage ? "w-10 h-10" : "w-20 h-20"
-              }`}>
-                <Camera className={selectedImage ? "w-5 h-5 text-primary" : "w-10 h-10 text-primary"} />
+            {isImageLoading ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Çizim yükleniyor...</p>
+                </div>
               </div>
-              <div className={selectedImage ? "" : "text-center"}>
-                <p className={`font-semibold ${selectedImage ? "text-sm" : "text-lg mb-1"}`}>
-                  {selectedImage ? "✅ Çizim Yüklendi! (değiştirmek için dokun)" : "Çizim Yükle"}
-                </p>
-                {!selectedImage && (
-                  <p className="text-sm text-muted-foreground">
-                    Fotoğraf çek veya galeriden seç
+            ) : (
+              <div className={`flex items-center gap-3 ${selectedImage ? "" : "flex-col gap-4"}`}>
+                <div className={`rounded-full bg-primary/10 flex items-center justify-center ${
+                  selectedImage ? "w-10 h-10" : "w-20 h-20"
+                }`}>
+                  <Camera className={selectedImage ? "w-5 h-5 text-primary" : "w-10 h-10 text-primary"} />
+                </div>
+                <div className={selectedImage ? "" : "text-center"}>
+                  <p className={`font-semibold ${selectedImage ? "text-sm" : "text-lg mb-1"}`}>
+                    {selectedImage ? "✅ Çizim Yüklendi! (değiştirmek için dokun)" : "Çizim Yükle"}
                   </p>
-                )}
+                  {!selectedImage && (
+                    <p className="text-sm text-muted-foreground">
+                      Fotoğraf çek veya galeriden seç
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </label>
 
-        {previewUrl && (
+        {/* Loading skeleton for image preview */}
+        {isImageLoading && (
+          <div className="bg-card rounded-2xl overflow-hidden border-2 border-primary/30 shadow-lg mb-6 animate-pulse">
+            <div className="p-4 space-y-4">
+              <div className="w-full aspect-[4/3] bg-muted rounded-xl flex items-center justify-center">
+                <div className="text-center">
+                  <ImageIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm text-muted-foreground">Çizim hazırlanıyor...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {previewUrl && !isImageLoading && (
           <div className="bg-card rounded-2xl overflow-hidden border-2 border-primary shadow-lg mb-6 animate-fade-in">
             <div className="p-4 space-y-4">
               <img
