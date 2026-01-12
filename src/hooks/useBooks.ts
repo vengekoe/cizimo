@@ -4,6 +4,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
+// Helper function for invoking edge functions with custom timeout
+async function invokeWithTimeout<T>(
+  functionName: string, 
+  body: Record<string, unknown>, 
+  timeoutMs: number = 300000 // 5 minutes default
+): Promise<{ data: T | null; error: Error | null }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body,
+      // @ts-ignore - AbortSignal is supported but not in types
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    return { data: data as T, error: error ? new Error(error.message) : null };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { data: null, error: new Error('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.') };
+    }
+    return { data: null, error: err instanceof Error ? err : new Error('Bilinmeyen hata') };
+  }
+}
+
 export interface FailedPage {
   pageIndex: number;
   pageNumber: number;
@@ -331,12 +358,10 @@ export const useBooks = () => {
       await new Promise(resolve => setTimeout(resolve, 3000 * (failed.attempts || 1)));
       
       try {
-        const { data } = await supabase.functions.invoke("generate-book-images", {
-          body: {
-            pages: [page],
-            theme
-          },
-        });
+        const { data } = await invokeWithTimeout<{ images: (string | null)[] }>("generate-book-images", {
+          pages: [page],
+          theme
+        }, 120000); // 2 minutes for single image
         
         const image = data?.images?.[0] || null;
         results.push({ pageIndex: failed.pageIndex, image });
@@ -474,12 +499,10 @@ export const useBooks = () => {
       setProgress({ stage: 'images', percentage: 40, message: 'Sayfa görselleri oluşturuluyor...' });
 
       // Görselleri oluştur
-      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
-        body: {
-          pages: storyData.story.pages,
-          theme: `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`,
-        },
-      });
+      const { data: imageData, error: imageError } = await invokeWithTimeout<{ images: (string | null)[]; summary?: { failed: number; failedPages: FailedPage[] } }>("generate-book-images", {
+        pages: storyData.story.pages,
+        theme: `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`,
+      }, 600000); // 10 minutes for multiple images
 
       if (imageError) {
         console.error("Image generation error:", imageError);
@@ -678,19 +701,17 @@ export const useBooks = () => {
       setProgress({ stage: 'cover', percentage: 30, message: 'Kitap kapağı oluşturuluyor...' });
       
       // Kitap kapağı için görsel oluştur
-      const { data: coverData } = await supabase.functions.invoke("generate-book-images", {
-        body: {
-          pages: [{
-            character: storyData.story.title,
-            emoji: storyData.story.pages[0]?.emoji || "📖",
-            title: storyData.story.title,
-            description: `Book cover for ${storyData.story.title}`,
-            sound: ""
-          }],
-          theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`,
-          imageModel: imageModel || "gemini-2.5-flash-image"
-        },
-      });
+      const { data: coverData } = await invokeWithTimeout<{ images: (string | null)[] }>("generate-book-images", {
+        pages: [{
+          character: storyData.story.title,
+          emoji: storyData.story.pages[0]?.emoji || "📖",
+          title: storyData.story.title,
+          description: `Book cover for ${storyData.story.title}`,
+          sound: ""
+        }],
+        theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`,
+        imageModel: imageModel || "dall-e-3"
+      }, 120000); // 2 minutes for cover image
 
       // Kapak görselini yükle
       let coverImageUrl = null;
@@ -701,13 +722,11 @@ export const useBooks = () => {
       setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
       
       // Sayfa görselleri oluştur
-      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
-        body: {
-          pages: storyData.story.pages,
-          theme,
-          imageModel: imageModel || "gemini-2.5-flash-image"
-        },
-      });
+      const { data: imageData, error: imageError } = await invokeWithTimeout<{ images: (string | null)[]; summary?: { failed: number; failedPages: FailedPage[] } }>("generate-book-images", {
+        pages: storyData.story.pages,
+        theme,
+        imageModel: imageModel || "dall-e-3"
+      }, 600000); // 10 minutes for multiple images
 
       if (imageError) {
         console.error("Image generation error:", imageError);
@@ -949,9 +968,10 @@ export const useBooks = () => {
       setProgress({ stage: 'images', percentage: 20, message: `${book.pages.length} görsel yeniden oluşturuluyor...` });
 
       // Call edge function to generate new high-resolution images
-      const { data: imageResponse, error: imageError } = await supabase.functions.invoke('generate-book-images', {
-        body: { pages: pagesData, theme: book.theme },
-      });
+      const { data: imageResponse, error: imageError } = await invokeWithTimeout<{ images: (string | null)[] }>('generate-book-images', {
+        pages: pagesData, 
+        theme: book.theme
+      }, 600000); // 10 minutes for regeneration
 
       if (imageError) {
         console.error('Image generation error:', imageError);
