@@ -73,37 +73,67 @@ async function updateTask(taskId: string, updates: {
 async function processTask(taskId: string, inputData: any) {
   console.log(`Processing task ${taskId}`);
   
+  const isFromDrawing = inputData.isFromDrawing || !!inputData.imageBase64;
+  
   try {
-    // Step 1: Analyzing
+    // Step 1: Analyzing / Generating story
     await updateTask(taskId, {
       status: "analyzing",
-      progress_message: "Çizim analiz ediliyor...",
+      progress_message: isFromDrawing ? "Çizim analiz ediliyor..." : "Hikaye oluşturuluyor...",
       progress_percent: 10,
     });
 
-    // Call generate-story-from-drawing function
-    const storyResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-story-from-drawing`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        imageBase64: inputData.imageBase64,
-        language: inputData.language || "tr",
-        pageCount: inputData.pageCount || 5,
-        model: inputData.model || "gemini-3-pro-preview",
-        userDescription: inputData.userDescription,
-        profile: inputData.profile,
-      }),
-    });
+    let storyData: any;
 
-    if (!storyResponse.ok) {
-      const errorText = await storyResponse.text();
-      throw new Error(`Story generation failed: ${errorText}`);
+    if (isFromDrawing) {
+      // Call generate-story-from-drawing function
+      const storyResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-story-from-drawing`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageBase64: inputData.imageBase64,
+          language: inputData.language || "tr",
+          pageCount: inputData.pageCount || 5,
+          model: inputData.model || "gemini-3-pro-preview",
+          userDescription: inputData.userDescription,
+          profile: inputData.profile,
+        }),
+      });
+
+      if (!storyResponse.ok) {
+        const errorText = await storyResponse.text();
+        throw new Error(`Story generation failed: ${errorText}`);
+      }
+
+      storyData = await storyResponse.json();
+    } else {
+      // Call generate-story function for theme-based generation
+      const storyResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-story`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          theme: inputData.theme,
+          language: inputData.language || "tr",
+          pageCount: inputData.pageCount || 5,
+          model: inputData.model || "gemini-3-pro-preview",
+          profile: inputData.profile,
+        }),
+      });
+
+      if (!storyResponse.ok) {
+        const errorText = await storyResponse.text();
+        throw new Error(`Story generation failed: ${errorText}`);
+      }
+
+      storyData = await storyResponse.json();
     }
 
-    const storyData = await storyResponse.json();
     console.log("Story generated");
 
     // Step 2: Generating images
@@ -114,7 +144,12 @@ async function processTask(taskId: string, inputData: any) {
     });
 
     // Prepare pages for image generation
-    const pagesForImages = storyData.pages.map((page: any) => ({
+    const pages = storyData.pages || [];
+    if (!pages || pages.length === 0) {
+      throw new Error("No pages returned from story generation");
+    }
+
+    const pagesForImages = pages.map((page: any) => ({
       character: page.character,
       emoji: page.emoji,
       description: page.description,
@@ -149,7 +184,7 @@ async function processTask(taskId: string, inputData: any) {
 
     // Create the book object
     const bookId = `book-${Date.now()}`;
-    const pagesWithImages = storyData.pages.map((page: any, index: number) => ({
+    const pagesWithImages = pages.map((page: any, index: number) => ({
       ...page,
       backgroundImage: imageData.images?.[index] || null,
     }));
@@ -163,10 +198,10 @@ async function processTask(taskId: string, inputData: any) {
         child_id: inputData.profile?.childId || null,
         title: storyData.title,
         theme: storyData.theme || storyData.title,
-        cover_emoji: storyData.pages[0]?.emoji || "📚",
+        cover_emoji: pages[0]?.emoji || "📚",
         cover_image: pagesWithImages[0]?.backgroundImage || null,
         category: inputData.category || "other",
-        is_from_drawing: true,
+        is_from_drawing: isFromDrawing,
       });
 
     if (bookError) {
