@@ -8,10 +8,48 @@ const corsHeaders = {
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Create Supabase client with service role
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// Create Supabase client with service role for database operations
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// Helper function to verify user authentication and task ownership
+async function verifyUserOwnership(req: Request, taskId: string): Promise<{ userId: string | null; error: string | null }> {
+  const authHeader = req.headers.get('Authorization');
+  
+  if (!authHeader) {
+    return { userId: null, error: 'Authentication required' };
+  }
+
+  // Create authenticated client to verify user
+  const authenticatedSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } }
+  });
+
+  const { data: { user }, error: authError } = await authenticatedSupabase.auth.getUser();
+  
+  if (authError || !user) {
+    return { userId: null, error: 'Invalid authentication' };
+  }
+
+  // Verify the user owns this task
+  const { data: task, error: taskError } = await supabaseAdmin
+    .from("book_generation_tasks")
+    .select("user_id")
+    .eq("id", taskId)
+    .single();
+
+  if (taskError || !task) {
+    return { userId: null, error: 'Task not found' };
+  }
+
+  if (task.user_id !== user.id) {
+    return { userId: null, error: 'Access denied: You do not own this task' };
+  }
+
+  return { userId: user.id, error: null };
+}
 
 // Helper to update task status
 async function updateTask(taskId: string, updates: {
@@ -21,7 +59,7 @@ async function updateTask(taskId: string, updates: {
   book_id?: string;
   error_message?: string;
 }) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from("book_generation_tasks")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", taskId);
@@ -117,7 +155,7 @@ async function processTask(taskId: string, inputData: any) {
     }));
 
     // Save book to database
-    const { error: bookError } = await supabase
+    const { error: bookError } = await supabaseAdmin
       .from("books")
       .insert({
         id: bookId,
@@ -148,7 +186,7 @@ async function processTask(taskId: string, inputData: any) {
       text_position: page.textPosition || "bottom",
     }));
 
-    const { error: pagesError } = await supabase
+    const { error: pagesError } = await supabaseAdmin
       .from("book_pages")
       .insert(pagesToInsert);
 
@@ -192,8 +230,21 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the task
-    const { data: task, error: taskError } = await supabase
+    // Verify user authentication and task ownership
+    const { userId, error: authError } = await verifyUserOwnership(req, taskId);
+    
+    if (authError) {
+      console.error("Auth error:", authError);
+      return new Response(
+        JSON.stringify({ error: authError }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`User ${userId} authorized to process task ${taskId}`);
+
+    // Fetch the full task data
+    const { data: task, error: taskError } = await supabaseAdmin
       .from("book_generation_tasks")
       .select("*")
       .eq("id", taskId)
