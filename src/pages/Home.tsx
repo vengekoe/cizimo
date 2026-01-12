@@ -118,14 +118,16 @@ const Home = () => {
             </p>
           </div>
           {isAdmin && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => navigate("/admin")}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
               className="shrink-0"
             >
-              <Shield className="w-4 h-4 mr-1" />
-              Admin
+              <Link to="/admin" aria-label="Admin paneline git">
+                <Shield className="w-4 h-4 mr-1" />
+                Admin
+              </Link>
             </Button>
           )}
         </div>
