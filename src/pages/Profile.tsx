@@ -27,7 +27,7 @@ const Profile = () => {
   // Form states
   const [displayName, setDisplayName] = useState("");
   const [preferredModel, setPreferredModel] = useState("gemini-3-pro-preview");
-  const [preferredImageModel, setPreferredImageModel] = useState("gemini-2.5-flash-image");
+  const [preferredImageModel, setPreferredImageModel] = useState("dall-e-3");
   const [preferredLanguage, setPreferredLanguage] = useState("tr");
   const [preferredPageCount, setPreferredPageCount] = useState("10");
 
@@ -44,7 +44,7 @@ const Profile = () => {
     if (profile) {
       setDisplayName(profile.display_name || "");
       setPreferredModel(profile.preferred_ai_model || "gemini-3-pro-preview");
-      setPreferredImageModel(profile.preferred_image_model || "gemini-2.5-flash-image");
+      setPreferredImageModel(profile.preferred_image_model || "dall-e-3");
       setPreferredLanguage(profile.preferred_language || "tr");
       setPreferredPageCount(profile.preferred_page_count?.toString() || "10");
     }
@@ -283,13 +283,25 @@ const Profile = () => {
                       <SelectItem value="dall-e-3">
                         <div className="flex flex-col">
                           <span>🎨 OpenAI DALL-E 3</span>
-                          <span className="text-xs text-muted-foreground">Önerilen - Yüksek kalite, detaylı görseller</span>
+                          <span className="text-xs text-muted-foreground">Önerilen - Yüksek kalite, detaylı çocuk kitabı görselleri</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="gpt-image-1">
                         <div className="flex flex-col">
                           <span>✨ OpenAI GPT Image 1</span>
-                          <span className="text-xs text-muted-foreground">En yeni - Organizasyon doğrulaması gerekli</span>
+                          <span className="text-xs text-muted-foreground">En yeni OpenAI - Organizasyon doğrulaması gerekli</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gemini-2.5-flash-image">
+                        <div className="flex flex-col">
+                          <span>⚡ Google Gemini 2.5 Flash Image</span>
+                          <span className="text-xs text-muted-foreground">Hızlı - Bölge kısıtlaması olabilir</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gemini-3-pro-image">
+                        <div className="flex flex-col">
+                          <span>🌟 Google Gemini 3 Pro Image</span>
+                          <span className="text-xs text-muted-foreground">Yeni nesil - Bölge kısıtlaması olabilir</span>
                         </div>
                       </SelectItem>
                     </SelectContent>

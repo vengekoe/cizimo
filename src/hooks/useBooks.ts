@@ -400,7 +400,8 @@ export const useBooks = () => {
     pageCount: number = 10, 
     model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview", 
     userDescription?: string,
-    profileData?: ProfileForStory
+    profileData?: ProfileForStory,
+    imageModel: "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image" = "dall-e-3"
   ): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
@@ -502,6 +503,7 @@ export const useBooks = () => {
       const { data: imageData, error: imageError } = await invokeWithTimeout<{ images: (string | null)[]; summary?: { failed: number; failedPages: FailedPage[] } }>("generate-book-images", {
         pages: storyData.story.pages,
         theme: `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`,
+        imageModel,
       }, 600000); // 10 minutes for multiple images
 
       if (imageError) {
@@ -674,7 +676,7 @@ export const useBooks = () => {
     model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview",
     profileData?: ProfileForStory,
     category?: string,
-    imageModel?: "gemini-2.5-flash-image" | "gemini-3-pro-image"
+    imageModel: "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image" = "dall-e-3"
   ): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Hikaye oluşturuluyor...' });

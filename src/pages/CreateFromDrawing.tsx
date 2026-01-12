@@ -59,6 +59,7 @@ const CreateFromDrawing = () => {
     }
     
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+    const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
     
     const profileData = {
       childId: selectedChild.id,
@@ -74,7 +75,7 @@ const CreateFromDrawing = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined, profileData);
+    const book = await generateBookFromDrawing(selectedImage, language, pageCount, aiModel, drawingDescription.trim() || undefined, profileData, imageModel);
     if (book) {
       setSelectedImage(null);
       setPreviewUrl("");
