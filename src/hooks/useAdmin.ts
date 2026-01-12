@@ -43,14 +43,12 @@ export const useAdmin = () => {
     queryKey: ["admin_check", user?.id],
     queryFn: async () => {
       if (!user?.id) return false;
-      
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      
+
+      // Use a SECURITY DEFINER DB function so we don't rely on direct table SELECTs (RLS-safe)
+      const { data, error } = await supabase.rpc("is_admin", {
+        _user_id: user.id,
+      });
+
       if (error) return false;
       return !!data;
     },
