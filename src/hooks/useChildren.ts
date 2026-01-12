@@ -174,12 +174,18 @@ export const useChildren = () => {
     return children.find(c => c.id === selectedChildId) || null;
   };
 
+  const getChildById = (childId: string | undefined | null) => {
+    if (!childId) return null;
+    return children.find(c => c.id === childId) || null;
+  };
+
   return {
     children,
     loading,
     selectedChildId,
     setSelectedChildId,
     getSelectedChild,
+    getChildById,
     addChild,
     updateChild,
     deleteChild,
