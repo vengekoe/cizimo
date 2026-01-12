@@ -86,6 +86,41 @@ export const useAuth = () => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/auth?reset=true`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) throw error;
+      
+      toast.success('Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!');
+      return { error: null };
+    } catch (error: any) {
+      toast.error(error.message || 'Şifre sıfırlama isteği gönderilemedi');
+      return { error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+      
+      toast.success('Şifreniz başarıyla güncellendi!');
+      navigate('/home');
+      return { error: null };
+    } catch (error: any) {
+      toast.error(error.message || 'Şifre güncellenemedi');
+      return { error };
+    }
+  };
+
   return {
     user,
     session,
@@ -93,5 +128,7 @@ export const useAuth = () => {
     signUp,
     signIn,
     signOut,
+    resetPassword,
+    updatePassword,
   };
 };

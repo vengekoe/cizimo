@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { ArrowLeft } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Geçerli bir e-posta adresi giriniz'),
@@ -24,13 +24,30 @@ const signupSchema = loginSchema.extend({
   path: ['confirmPassword'],
 });
 
+const resetRequestSchema = z.object({
+  email: z.string().email('Geçerli bir e-posta adresi giriniz'),
+});
+
+const newPasswordSchema = z.object({
+  password: z.string().min(6, 'Şifre en az 6 karakter olmalıdır'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Şifreler eşleşmiyor',
+  path: ['confirmPassword'],
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
 type SignupFormValues = z.infer<typeof signupSchema>;
+type ResetRequestFormValues = z.infer<typeof resetRequestSchema>;
+type NewPasswordFormValues = z.infer<typeof newPasswordSchema>;
 
 const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const { user, signIn, signUp, loading, resetPassword, updatePassword } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -50,11 +67,33 @@ const Auth = () => {
     },
   });
 
+  const resetRequestForm = useForm<ResetRequestFormValues>({
+    resolver: zodResolver(resetRequestSchema),
+    defaultValues: {
+      email: '',
+    },
+  });
+
+  const newPasswordForm = useForm<NewPasswordFormValues>({
+    resolver: zodResolver(newPasswordSchema),
+    defaultValues: {
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
   useEffect(() => {
-    if (!loading && user) {
+    // Check if this is a password reset callback
+    if (searchParams.get('reset') === 'true') {
+      setIsResetMode(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!loading && user && !isResetMode) {
       navigate('/home');
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, isResetMode]);
 
   const handleLogin = async (values: LoginFormValues) => {
     setIsSubmitting(true);
@@ -68,10 +107,122 @@ const Auth = () => {
     setIsSubmitting(false);
   };
 
+  const handleResetRequest = async (values: ResetRequestFormValues) => {
+    setIsSubmitting(true);
+    const result = await resetPassword(values.email);
+    setIsSubmitting(false);
+    if (!result.error) {
+      setShowForgotPassword(false);
+      resetRequestForm.reset();
+    }
+  };
+
+  const handleNewPassword = async (values: NewPasswordFormValues) => {
+    setIsSubmitting(true);
+    await updatePassword(values.password);
+    setIsSubmitting(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20">
         <div className="text-xl">Yükleniyor...</div>
+      </div>
+    );
+  }
+
+  // Password reset mode - user clicked the link from email
+  if (isResetMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-2">🔐</div>
+            <CardTitle className="text-2xl font-bold">Yeni Şifre Belirle</CardTitle>
+            <CardDescription>Hesabınız için yeni bir şifre oluşturun</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...newPasswordForm}>
+              <form onSubmit={newPasswordForm.handleSubmit(handleNewPassword)} className="space-y-4">
+                <FormField
+                  control={newPasswordForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Yeni Şifre</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={newPasswordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Şifre Tekrar</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="••••••" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Forgot password form
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="text-4xl mb-2">📧</div>
+            <CardTitle className="text-2xl font-bold">Şifremi Unuttum</CardTitle>
+            <CardDescription>E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...resetRequestForm}>
+              <form onSubmit={resetRequestForm.handleSubmit(handleResetRequest)} className="space-y-4">
+                <FormField
+                  control={resetRequestForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-posta</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="ornek@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Gönderiliyor...' : 'Sıfırlama Bağlantısı Gönder'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full" 
+                  onClick={() => setShowForgotPassword(false)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Giriş sayfasına dön
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -122,6 +273,14 @@ const Auth = () => {
                   />
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="link" 
+                    className="w-full text-sm text-muted-foreground"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Şifremi unuttum
                   </Button>
                 </form>
               </Form>
