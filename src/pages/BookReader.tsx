@@ -184,11 +184,11 @@ const BookReader = () => {
           animationType={animation}
           gradientFallback={gradientBg}
         >
-          <div className="text-center space-y-8 animate-fade-in">
-            <h2 className="text-4xl md:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-8 py-4 rounded-3xl shadow-2xl">
+          <div className="text-center space-y-4 md:space-y-6 lg:space-y-8 animate-fade-in px-4 md:px-8">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground bg-card/80 backdrop-blur-sm px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4 rounded-2xl md:rounded-3xl shadow-2xl">
               {page.title}
             </h2>
-            <p className="text-2xl md:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-6 py-3 rounded-2xl shadow-xl max-w-2xl">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-foreground bg-card/70 backdrop-blur-sm px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl md:rounded-2xl shadow-xl max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto leading-relaxed">
               {page.description}
             </p>
           </div>
