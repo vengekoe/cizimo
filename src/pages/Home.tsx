@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useAuth } from "@/hooks/useAuth";
 import { useChildren } from "@/hooks/useChildren";
+import { useBookShares } from "@/hooks/useBookShares";
 import { Button } from "@/components/ui/button";
-import { Trash2, Star, Clock, Paintbrush, Baby } from "lucide-react";
+import { Trash2, Star, Clock, Paintbrush, Baby, Share2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,14 +21,17 @@ import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 import BottomNavigation from "@/components/BottomNavigation";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
+import { BookShareDialog } from "@/components/BookShareDialog";
 
 const Home = () => {
   const { books, loading, progress, deleteBook, toggleFavorite } = useBooks();
   const { user, loading: authLoading } = useAuth();
   const { children, selectedChildId, setSelectedChildId } = useChildren();
+  const { getSharedBooksForChild } = useBookShares();
   const navigate = useNavigate();
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
+  const [shareDialogBook, setShareDialogBook] = useState<{ id: string; title: string; childId?: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,9 +39,12 @@ const Home = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Filter books by selected child
+  // Get shared book IDs for selected child
+  const sharedBookIds = selectedChildId ? getSharedBooksForChild(selectedChildId) : [];
+
+  // Filter books by selected child (owned or shared)
   const filteredBooks = selectedChildId 
-    ? books.filter(book => book.childId === selectedChildId)
+    ? books.filter(book => book.childId === selectedChildId || sharedBookIds.includes(book.id))
     : books;
 
   const sortedBooks = [...filteredBooks].sort((a, b) => {
@@ -147,10 +154,17 @@ const Home = () => {
                   to={`/book/${book.id}`}
                   className="block relative overflow-hidden rounded-2xl bg-card border border-border hover:border-primary transition-all duration-300 hover:shadow-lg"
                 >
-                  {book.isFromDrawing && (
+                {book.isFromDrawing && (
                     <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full flex items-center gap-1 text-[10px] font-medium shadow-lg">
                       <Paintbrush className="w-3 h-3" />
                       Çizimden
+                    </div>
+                  )}
+                  {/* Shared badge */}
+                  {selectedChildId && book.childId !== selectedChildId && sharedBookIds.includes(book.id) && (
+                    <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-1 rounded-full flex items-center gap-1 text-[10px] font-medium shadow-lg">
+                      <Share2 className="w-3 h-3" />
+                      Paylaşılan
                     </div>
                   )}
                   <div className="p-5">
@@ -191,6 +205,21 @@ const Home = () => {
                   >
                     <Star className={`w-4 h-4 ${book.isFavorite ? "fill-current" : ""}`} />
                   </Button>
+                  {/* Share button - only for books owned by this user */}
+                  {children.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity shadow bg-card/90 hover:bg-card text-muted-foreground backdrop-blur-sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShareDialogBook({ id: book.id, title: book.title, childId: book.childId });
+                      }}
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -229,6 +258,17 @@ const Home = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Book Share Dialog */}
+      {shareDialogBook && (
+        <BookShareDialog
+          bookId={shareDialogBook.id}
+          bookTitle={shareDialogBook.title}
+          ownerChildId={shareDialogBook.childId}
+          open={!!shareDialogBook}
+          onOpenChange={(open) => !open && setShareDialogBook(null)}
+        />
+      )}
 
       <BottomNavigation />
     </div>
