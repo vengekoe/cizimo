@@ -29,6 +29,7 @@ const CreateFromDrawing = () => {
   const [drawingDescription, setDrawingDescription] = useState<string>("");
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [isStartingBackground, setIsStartingBackground] = useState(false);
+  const [currentImageBase64, setCurrentImageBase64] = useState<string>("");
   const [language, setLanguage] = useState<"tr" | "en">(
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
@@ -43,6 +44,8 @@ const CreateFromDrawing = () => {
       
       const reader = new FileReader();
       reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setCurrentImageBase64(base64);
         setTimeout(() => {
           setPreviewUrl(URL.createObjectURL(file));
           setIsImageLoading(false);
@@ -133,6 +136,69 @@ const CreateFromDrawing = () => {
     }
   };
 
+  // Move current generation to background
+  const handleMoveToBackground = async () => {
+    if (!selectedImage || !user || !currentImageBase64) {
+      toast.error("Arka plana taşınamadı");
+      return;
+    }
+    
+    const selectedChild = getSelectedChild();
+    if (!selectedChild) {
+      toast.error("Çocuk seçili değil");
+      return;
+    }
+
+    const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+    const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
+    
+    const inputData = {
+      imageBase64: currentImageBase64,
+      language,
+      pageCount,
+      model: aiModel,
+      imageModel,
+      userDescription: drawingDescription.trim() || undefined,
+      category,
+      userId: user.id,
+      profile: {
+        childId: selectedChild.id,
+        childName: selectedChild.name,
+        displayName: selectedChild.name,
+        age: selectedChild.age,
+        gender: selectedChild.gender,
+        favoriteColor: selectedChild.favorite_color,
+        favoriteAnimal: selectedChild.favorite_animal,
+        favoriteTeam: selectedChild.favorite_team,
+        favoriteToy: selectedChild.favorite_toy,
+        favoriteSuperhero: selectedChild.favorite_superhero,
+        favoriteCartoon: selectedChild.favorite_cartoon,
+      },
+    };
+
+    // Create background task
+    const task = await createTask(inputData, selectedChild.id);
+    
+    if (task) {
+      // Start processing in background
+      supabase.functions.invoke("process-background-task", {
+        body: { taskId: task.id },
+      }).catch(console.error);
+
+      toast.success("🎨 Hikaye arka plana taşındı!", {
+        description: "Hazır olduğunda sizi bilgilendireceğiz.",
+        duration: 5000,
+      });
+
+      // Reset form and navigate home
+      setSelectedImage(null);
+      setPreviewUrl("");
+      setDrawingDescription("");
+      setCurrentImageBase64("");
+      navigate("/home");
+    }
+  };
+
   const handleGenerate = async () => {
     if (!selectedImage) {
       toast.error("Lütfen bir çizim yükleyin");
@@ -174,7 +240,10 @@ const CreateFromDrawing = () => {
 
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-accent/10">
-      <BookGenerationProgress progress={progress} />
+      <BookGenerationProgress 
+        progress={progress} 
+        onMoveToBackground={loading && currentImageBase64 ? handleMoveToBackground : undefined}
+      />
       
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <div className="flex items-center gap-3 mb-6">
