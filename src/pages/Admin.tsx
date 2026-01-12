@@ -10,11 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { 
   Loader2, Shield, Users, BarChart3, Crown, ArrowLeft, 
-  Search, RefreshCw, UserCheck, UserX, RotateCcw, Book, Baby, Clock
+  Search, RefreshCw, UserCheck, UserX, RotateCcw, Book, Baby, Clock,
+  TrendingUp, Activity, Zap, AlertTriangle, CheckCircle2, Settings
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 
 const Admin = () => {
@@ -123,14 +126,22 @@ const Admin = () => {
         </div>
 
         <Tabs defaultValue="stats" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="stats" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              İstatistikler
+              <span className="hidden sm:inline">İstatistikler</span>
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Kullanıcılar
+              <span className="hidden sm:inline">Kullanıcılar</span>
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              <span className="hidden sm:inline">Aktivite</span>
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Sistem</span>
             </TabsTrigger>
           </TabsList>
 
@@ -391,6 +402,242 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Son Aktiviteler
+                </CardTitle>
+                <CardDescription>
+                  Platformdaki son kullanıcı hareketleri
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {usersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Recent Signups */}
+                    <div>
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-green-500" />
+                        Son Kayıt Olan Kullanıcılar
+                      </h3>
+                      <div className="space-y-2">
+                        {users
+                          .sort((a, b) => new Date(b.user_created_at).getTime() - new Date(a.user_created_at).getTime())
+                          .slice(0, 5)
+                          .map((u) => (
+                            <div key={u.user_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                                  <Users className="w-4 h-4 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{u.display_name || u.email}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(u.user_created_at), { addSuffix: true, locale: tr })}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant="outline">
+                                {TIER_EMOJIS[u.tier]} {TIER_NAMES[u.tier]?.split(" ").slice(1).join(" ")}
+                              </Badge>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Most Active Users */}
+                    <div>
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-yellow-500" />
+                        En Aktif Kullanıcılar
+                      </h3>
+                      <div className="space-y-2">
+                        {users
+                          .sort((a, b) => b.total_reading_seconds - a.total_reading_seconds)
+                          .slice(0, 5)
+                          .map((u, index) => (
+                            <div key={u.user_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                                  index === 0 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-600' :
+                                  index === 1 ? 'bg-gray-100 dark:bg-gray-800 text-gray-600' :
+                                  index === 2 ? 'bg-orange-100 dark:bg-orange-900 text-orange-600' :
+                                  'bg-muted text-muted-foreground'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{u.display_name || u.email}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {u.books_count} kitap • {u.children_count} çocuk
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium text-sm">{formatDuration(u.total_reading_seconds)}</p>
+                                <p className="text-xs text-muted-foreground">okuma süresi</p>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Users with Most Books */}
+                    <div>
+                      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Book className="w-4 h-4 text-blue-500" />
+                        En Çok Kitap Oluşturanlar
+                      </h3>
+                      <div className="space-y-2">
+                        {users
+                          .sort((a, b) => b.books_count - a.books_count)
+                          .slice(0, 5)
+                          .map((u) => (
+                            <div key={u.user_id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                                  <Book className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{u.display_name || u.email}</p>
+                                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                                </div>
+                              </div>
+                              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                {u.books_count} kitap
+                              </Badge>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="system">
+            <div className="space-y-4">
+              {/* System Health */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    Sistem Durumu
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-medium text-green-700 dark:text-green-400">Veritabanı</span>
+                      </div>
+                      <p className="text-xs text-green-600 dark:text-green-500">Çalışıyor</p>
+                    </div>
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-medium text-green-700 dark:text-green-400">API Servisleri</span>
+                      </div>
+                      <p className="text-xs text-green-600 dark:text-green-500">Çalışıyor</p>
+                    </div>
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-900">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-medium text-green-700 dark:text-green-400">Dosya Depolama</span>
+                      </div>
+                      <p className="text-xs text-green-600 dark:text-green-500">Çalışıyor</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Platform Usage */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Platform Kullanımı
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {statistics && (
+                    <>
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Toplam Kullanıcı Kapasitesi</span>
+                          <span className="font-medium">{statistics.total_users} / ∞</span>
+                        </div>
+                        <Progress value={Math.min((statistics.total_users / 1000) * 100, 100)} className="h-2" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Bu Ay Oluşturulan Kitaplar</span>
+                          <span className="font-medium">{statistics.books_this_month}</span>
+                        </div>
+                        <Progress value={Math.min((statistics.books_this_month / 100) * 100, 100)} className="h-2" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Aktif Okuma Oturumları</span>
+                          <span className="font-medium">{statistics.total_reading_sessions}</span>
+                        </div>
+                        <Progress value={Math.min((statistics.total_reading_sessions / 500) * 100, 100)} className="h-2" />
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    Hızlı İşlemler
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => refetchUsers()}>
+                      <RefreshCw className="w-5 h-5" />
+                      <span className="text-xs">Verileri Yenile</span>
+                    </Button>
+                    <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/home")}>
+                      <Book className="w-5 h-5" />
+                      <span className="text-xs">Ana Sayfa</span>
+                    </Button>
+                    <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => navigate("/profile")}>
+                      <Users className="w-5 h-5" />
+                      <span className="text-xs">Profil</span>
+                    </Button>
+                    <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" onClick={() => window.location.reload()}>
+                      <Activity className="w-5 h-5" />
+                      <span className="text-xs">Sayfayı Yenile</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Admin Info */}
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-700 dark:text-blue-300">
+                  <span className="font-medium">Admin olarak giriş yaptınız. </span>
+                  Tüm kullanıcı verilerine ve sistem ayarlarına erişiminiz var. 
+                  Lütfen değişiklik yaparken dikkatli olun.
+                </AlertDescription>
+              </Alert>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
