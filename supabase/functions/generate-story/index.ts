@@ -8,11 +8,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const profileSchema = z.object({
+  age: z.number().nullable().optional(),
+  gender: z.string().nullable().optional(),
+  favoriteColor: z.string().nullable().optional(),
+  favoriteAnimal: z.string().nullable().optional(),
+  favoriteTeam: z.string().nullable().optional(),
+  favoriteToy: z.string().nullable().optional(),
+  favoriteSuperhero: z.string().nullable().optional(),
+  favoriteCartoon: z.string().nullable().optional(),
+  displayName: z.string().nullable().optional(),
+}).optional();
+
 const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
   language: z.enum(["tr", "en"]).default("tr"),
   pageCount: z.number().min(5).max(20).default(10),
   model: z.enum(["gemini-3-pro-preview", "gpt-5-mini", "gpt-5.1-mini-preview"]).optional().default("gemini-3-pro-preview"),
+  profile: profileSchema,
 });
 
 const storySchema = z.object({
@@ -34,9 +47,47 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { theme, language, pageCount, model } = requestSchema.parse(body);
+    const { theme, language, pageCount, model, profile } = requestSchema.parse(body);
     
-    console.log(`Generating story: theme=${theme}, lang=${language}, pages=${pageCount}, model=${model}`);
+    console.log(`Generating story: theme=${theme}, lang=${language}, pages=${pageCount}, model=${model}, hasProfile=${!!profile}`);
+
+    // Build personalization context from profile
+    let personalizationContext = "";
+    if (profile) {
+      const parts: string[] = [];
+      
+      if (profile.displayName) {
+        parts.push(`Ana karakterin adı "${profile.displayName}" olsun veya hikayede bu isimde bir arkadaş olsun`);
+      }
+      if (profile.age) {
+        parts.push(`Hikaye ${profile.age} yaşındaki bir çocuk için uygun olsun`);
+      }
+      if (profile.gender) {
+        parts.push(`Ana karakter ${profile.gender === 'erkek' ? 'erkek' : profile.gender === 'kız' ? 'kız' : ''} olabilir`);
+      }
+      if (profile.favoriteColor) {
+        parts.push(`Hikayede ${profile.favoriteColor} rengi ön plana çıksın`);
+      }
+      if (profile.favoriteAnimal) {
+        parts.push(`Hikayede ${profile.favoriteAnimal} karakteri veya benzeri bir hayvan bulunsun`);
+      }
+      if (profile.favoriteSuperhero) {
+        parts.push(`${profile.favoriteSuperhero} tarzı süper güçler veya kahramanlık temaları eklenebilir`);
+      }
+      if (profile.favoriteCartoon) {
+        parts.push(`${profile.favoriteCartoon} çizgi filminin tarzından ilham alınabilir`);
+      }
+      if (profile.favoriteToy) {
+        parts.push(`Hikayede ${profile.favoriteToy} ile ilgili bir öğe olabilir`);
+      }
+      if (profile.favoriteTeam) {
+        parts.push(`Takım ruhu ve ${profile.favoriteTeam} gibi birlikte çalışma temaları işlenebilir`);
+      }
+      
+      if (parts.length > 0) {
+        personalizationContext = `\n\nKİŞİSELLEŞTİRME (çocuğun tercihlerine göre hikayeyi uyarla):\n${parts.map((p, i) => `${i + 1}) ${p}`).join('\n')}`;
+      }
+    }
 
     const prompt = `"${theme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
 
@@ -54,6 +105,7 @@ KURALLAR:
    - "top-right": Ana odak sol alttaysa
    - "bottom-left": Ana odak sağ üstteyse
    - "bottom-right": Ana odak sol üstteyse
+${personalizationContext}
 
 JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "English"}):
 {

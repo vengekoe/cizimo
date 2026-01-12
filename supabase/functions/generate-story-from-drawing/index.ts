@@ -8,6 +8,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const profileSchema = z.object({
+  age: z.number().nullable().optional(),
+  gender: z.string().nullable().optional(),
+  favoriteColor: z.string().nullable().optional(),
+  favoriteAnimal: z.string().nullable().optional(),
+  favoriteTeam: z.string().nullable().optional(),
+  favoriteToy: z.string().nullable().optional(),
+  favoriteSuperhero: z.string().nullable().optional(),
+  favoriteCartoon: z.string().nullable().optional(),
+  displayName: z.string().nullable().optional(),
+}).optional();
+
 // Validate base64 size (8MB limit = ~10.7MB base64)
 const requestSchema = z.object({
   imageBase64: z.string()
@@ -24,6 +36,7 @@ const requestSchema = z.object({
   pageCount: z.number().min(5).max(20).default(10),
   model: z.enum(["gemini-3-pro-preview", "gpt-5-mini", "gpt-5.1-mini-preview"]).optional().default("gemini-3-pro-preview"),
   userDescription: z.string().max(500).optional(),
+  profile: profileSchema,
 });
 
 const storyPageSchema = z.object({
@@ -51,9 +64,28 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64, language, pageCount, model: requestedModel, userDescription } = requestSchema.parse(body);
+    const { imageBase64, language, pageCount, model: requestedModel, userDescription, profile } = requestSchema.parse(body);
 
-    console.log(`Analyzing drawing with ${requestedModel}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}`);
+    console.log(`Analyzing drawing with ${requestedModel}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}, hasProfile=${!!profile}`);
+
+    // Build personalization context from profile
+    let personalizationHints = "";
+    if (profile) {
+      const hints: string[] = [];
+      if (profile.displayName) hints.push(`Çocuğun adı: ${profile.displayName}`);
+      if (profile.age) hints.push(`Yaş: ${profile.age}`);
+      if (profile.gender) hints.push(`Cinsiyet: ${profile.gender}`);
+      if (profile.favoriteColor) hints.push(`En sevdiği renk: ${profile.favoriteColor}`);
+      if (profile.favoriteAnimal) hints.push(`En sevdiği hayvan: ${profile.favoriteAnimal}`);
+      if (profile.favoriteSuperhero) hints.push(`En sevdiği süper kahraman: ${profile.favoriteSuperhero}`);
+      if (profile.favoriteCartoon) hints.push(`En sevdiği çizgi film: ${profile.favoriteCartoon}`);
+      if (profile.favoriteToy) hints.push(`En sevdiği oyuncak: ${profile.favoriteToy}`);
+      if (profile.favoriteTeam) hints.push(`En sevdiği takım: ${profile.favoriteTeam}`);
+      
+      if (hints.length > 0) {
+        personalizationHints = `\n\nÇOCUĞUN TERCİHLERİ (hikayeyi kişiselleştirmek için kullan):\n${hints.join('\n')}`;
+      }
+    }
 
     // Base64 string'den data URL prefix'ini çıkar
     const base64Parts = imageBase64.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -72,7 +104,7 @@ serve(async (req) => {
 1. Çizimdeki ana renkler (en fazla 3 renk)
 2. Çizimdeki karakterler veya nesneler (en fazla 4 karakter)
 3. Genel tema ve duygu
-4. Hikaye için uygun başlık${userHint}
+4. Hikaye için uygun başlık${userHint}${personalizationHints}
 
 JSON formatında dön:
 {
@@ -245,6 +277,25 @@ JSON formatında dön:
 
     console.log(`Drawing analyzed successfully with ${usedModel}`);
 
+    // Build personalization for story prompt
+    let storyPersonalization = "";
+    if (profile) {
+      const parts: string[] = [];
+      if (profile.displayName) parts.push(`Ana karakterin adı "${profile.displayName}" olsun veya hikayede bu isimde bir arkadaş bulunsun`);
+      if (profile.age) parts.push(`Hikaye ${profile.age} yaşındaki bir çocuk için uygun olsun`);
+      if (profile.gender) parts.push(`Ana karakter ${profile.gender === 'erkek' ? 'erkek' : profile.gender === 'kız' ? 'kız' : ''} olabilir`);
+      if (profile.favoriteColor) parts.push(`${profile.favoriteColor} rengi hikayede önemli bir rol oynasın`);
+      if (profile.favoriteAnimal) parts.push(`${profile.favoriteAnimal} hikayede bir karakter veya yardımcı olarak bulunsun`);
+      if (profile.favoriteSuperhero) parts.push(`${profile.favoriteSuperhero} tarzı süper güçler veya kahramanlık temaları işlensin`);
+      if (profile.favoriteCartoon) parts.push(`${profile.favoriteCartoon} çizgi filminin tarzından ilham alınsın`);
+      if (profile.favoriteToy) parts.push(`${profile.favoriteToy} hikayede sihirli veya önemli bir nesne olarak yer alsın`);
+      if (profile.favoriteTeam) parts.push(`Takım ruhu ve arkadaşlık temaları ${profile.favoriteTeam} gibi işlensin`);
+      
+      if (parts.length > 0) {
+        storyPersonalization = `\n\nKİŞİSELLEŞTİRME (çocuğun tercihlerine göre hikayeyi özelleştir):\n${parts.map((p, i) => `${i + 1}) ${p}`).join('\n')}`;
+      }
+    }
+
     // Step 2: Generate story based on analysis (with fallback)
     const storyPrompt = `Bu çizim analizine dayanarak ${pageCount} sayfalık tutarlı bir çocuk hikayesi oluştur (${language === "tr" ? "TÜRKÇE" : "ENGLISH"}):
 
@@ -261,6 +312,7 @@ KURALLAR:
 3) Başlangıç-gelişme-sonuç yapısı olmalı
 4) Pozitif, mutlu bir final olmalı
 5) Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalı
+${storyPersonalization}
 
 JSON FORMATINDA:
 {
