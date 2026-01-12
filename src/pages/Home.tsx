@@ -5,9 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChildren } from "@/hooks/useChildren";
 import { useBookShares } from "@/hooks/useBookShares";
 import { useBookCategories } from "@/hooks/useBookCategories";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Star, Clock, Paintbrush, Baby, Share2, Search, X } from "lucide-react";
+import { Trash2, Star, Clock, Paintbrush, Baby, Share2, Search, X, Shield } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,7 @@ const Home = () => {
   const { children } = useChildren();
   const { getSharedBooksForChild } = useBookShares();
   const { categories, getCategoryById, getCategoryColor } = useBookCategories();
+  const { isAdmin } = useSubscription();
   const navigate = useNavigate();
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
@@ -106,13 +108,26 @@ const Home = () => {
       
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Hikaye Kitaplığım 📚
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Yapay zeka ile benzersiz hikayeler keşfet!
-          </p>
+        <div className="flex items-start justify-between mb-6">
+          <div className="text-center flex-1">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Hikaye Kitaplığım 📚
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Yapay zeka ile benzersiz hikayeler keşfet!
+            </p>
+          </div>
+          {isAdmin && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate("/admin")}
+              className="shrink-0"
+            >
+              <Shield className="w-4 h-4 mr-1" />
+              Admin
+            </Button>
+          )}
         </div>
 
         {/* Arama */}
