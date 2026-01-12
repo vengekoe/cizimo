@@ -80,8 +80,9 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Gökkuşağı Ormanı</CardTitle>
-          <CardDescription>Macera başlamak üzere!</CardDescription>
+          <div className="text-4xl mb-2">📚</div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Çizimo</CardTitle>
+          <CardDescription>Hikaye maceranız başlamak üzere!</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
