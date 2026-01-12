@@ -3,20 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
+import { useReadingStats } from "@/hooks/useReadingStats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Settings, Baby, LogOut, Save, Plus } from "lucide-react";
+import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ChildCard } from "@/components/ChildCard";
+import { ChildStatsCard } from "@/components/ChildStatsCard";
 
 const Profile = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { children, loading: childrenLoading, addChild, updateChild, deleteChild } = useChildren();
+  const { stats, loading: statsLoading, formatDuration } = useReadingStats();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
@@ -88,10 +91,14 @@ const Profile = () => {
         </div>
 
         <Tabs defaultValue="children" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="children" className="flex items-center gap-1 text-xs sm:text-sm">
               <Baby className="w-4 h-4" />
               <span className="hidden sm:inline">Çocuklar</span>
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-1 text-xs sm:text-sm">
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">İstatistik</span>
             </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-1 text-xs sm:text-sm">
               <User className="w-4 h-4" />
@@ -156,6 +163,44 @@ const Profile = () => {
                     child={child}
                     onUpdate={updateChild}
                     onDelete={deleteChild}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="stats">
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Okuma İstatistikleri
+                </CardTitle>
+                <CardDescription>
+                  Her çocuğun okuma performansını takip edin
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            {statsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : stats.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Henüz okuma verisi yok</p>
+                  <p className="text-sm">Kitap okumaya başladığınızda istatistikler burada görünecek</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {stats.map((stat) => (
+                  <ChildStatsCard
+                    key={stat.child_id}
+                    stats={stat}
+                    formatDuration={formatDuration}
                   />
                 ))}
               </div>
