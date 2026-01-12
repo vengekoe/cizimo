@@ -29,13 +29,14 @@ serve(async (req) => {
     const { pages, theme } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
     
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    // IMPORTANT: Always use Gemini API - do not change unless explicitly requested by user
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY yapılandırılmamış");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY yapılandırılmamış");
     }
 
-    console.log(`Generating ${pages.length} high-resolution images for theme: ${theme}`);
+    console.log(`Generating ${pages.length} high-resolution images using Gemini 3 Pro Image for theme: ${theme}`);
 
     const images: (string | null)[] = [];
 
@@ -45,35 +46,43 @@ serve(async (req) => {
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
       try {
-        const response = await fetch("https://api.openai.com/v1/images/generations", {
+        console.log(`Calling Gemini 3 Pro Image API (attempt ${attempt})...`);
+        
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "gpt-image-1",
-            prompt: prompt,
-            n: 1,
-            size: "1536x1024", // Landscape, high resolution for all devices
-            quality: "high",
-            output_format: "png",
+            model: "google/gemini-3-pro-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ],
+            modalities: ["image", "text"]
           }),
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`OpenAI image gen failed (attempt ${attempt}):`, response.status, errorText);
+          console.error(`Gemini image gen failed (attempt ${attempt}):`, response.status, errorText);
           
           if (response.status === 429 && attempt < 3) {
-            console.log(`Rate limited, waiting ${10 * attempt} seconds...`);
-            await delay(10 * attempt * 1000);
+            console.log(`Rate limited, waiting ${15 * attempt} seconds...`);
+            await delay(15 * attempt * 1000);
             return generateImageWithRetry(prompt, attempt + 1);
+          }
+          
+          if (response.status === 402) {
+            throw new Error("Lovable AI kredileri yetersiz. Lütfen hesabınıza kredi ekleyin.");
           }
           
           if (attempt < 3) {
             console.log(`Retrying (attempt ${attempt + 1})...`);
-            await delay(3000 * attempt);
+            await delay(5000 * attempt);
             return generateImageWithRetry(prompt, attempt + 1);
           }
           
@@ -82,33 +91,19 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        console.log("OpenAI response received");
+        console.log("Gemini response received");
         
-        // gpt-image-1 returns base64 directly
-        const base64 = data?.data?.[0]?.b64_json;
+        // Extract base64 image from Gemini response
+        const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
         
-        if (base64) {
-          return `data:image/png;base64,${base64}`;
-        }
-        
-        // Fallback to URL if b64_json not available
-        const url = data?.data?.[0]?.url;
-        if (url) {
-          // Download the image and convert to base64
-          const imgResponse = await fetch(url);
-          const arrayBuffer = await imgResponse.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          let binary = '';
-          for (let i = 0; i < uint8Array.length; i++) {
-            binary += String.fromCharCode(uint8Array[i]);
-          }
-          const base64FromUrl = btoa(binary);
-          return `data:image/png;base64,${base64FromUrl}`;
+        if (imageData) {
+          console.log("Image generated successfully");
+          return imageData; // Already in data:image/png;base64,... format
         }
         
         console.error(`No image data in response (attempt ${attempt})`);
         if (attempt < 3) {
-          await delay(2000 * attempt);
+          await delay(3000 * attempt);
           return generateImageWithRetry(prompt, attempt + 1);
         }
         
@@ -116,7 +111,7 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Error generating image (attempt ${attempt}):`, error);
         if (attempt < 3) {
-          await delay(3000 * attempt);
+          await delay(5000 * attempt);
           return generateImageWithRetry(prompt, attempt + 1);
         }
         return null;
@@ -136,15 +131,16 @@ Character: ${page.character} ${page.emoji}
 Scene: ${shortDesc}
 Theme: ${theme}
 Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality.
-The illustration should fill the entire frame edge-to-edge with no borders or margins.`;
+The illustration should be in landscape orientation (16:9 aspect ratio), filling the entire frame edge-to-edge with no borders or margins.
+Ultra high resolution.`;
       
       console.log(`Generating image ${index + 1}/${pages.length}: ${page.character}`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
       
-      // Small delay between requests to avoid rate limiting
+      // Delay between requests to avoid rate limiting
       if (index < pages.length - 1) {
-        await delay(1000);
+        await delay(2000);
       }
     }
 
