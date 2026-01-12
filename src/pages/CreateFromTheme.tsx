@@ -4,13 +4,12 @@ import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Baby } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
-import { Link } from "react-router-dom";
+import { StoryChildSelector } from "@/components/story/StoryChildSelector";
+import { StorySettings } from "@/components/story/StorySettings";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
@@ -30,7 +29,7 @@ const themes = [
 const CreateFromTheme = () => {
   const { books, loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
-  const { children, selectedChildId, setSelectedChildId, getSelectedChild } = useChildren();
+  const { children, getSelectedChild } = useChildren();
   const navigate = useNavigate();
   
   const [language, setLanguage] = useState<"tr" | "en">(
@@ -49,7 +48,6 @@ const CreateFromTheme = () => {
       return;
     }
     
-    // Build profile data from selected child
     const profileData = {
       childId: selectedChild.id,
       childName: selectedChild.name,
@@ -67,9 +65,7 @@ const CreateFromTheme = () => {
     const book = await generateBook(theme, language, pageCount, aiModel, profileData);
     if (book) {
       toast.success("Yeni kitap hazır!");
-      setTimeout(() => {
-        navigate(`/book/${book.id}`);
-      }, 1000);
+      setTimeout(() => navigate(`/book/${book.id}`), 1000);
     }
   };
 
@@ -92,92 +88,18 @@ const CreateFromTheme = () => {
           </div>
         </div>
 
-        {/* Çocuk Seçimi */}
-        {children.length === 0 ? (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <Baby className="w-6 h-6 text-amber-600" />
-              <div className="flex-1">
-                <p className="font-medium text-sm">Çocuk profili bulunamadı</p>
-                <p className="text-xs text-muted-foreground">Kişiselleştirilmiş hikayeler için çocuk ekleyin</p>
-              </div>
-              <Link to="/profile">
-                <Button size="sm" variant="outline">Ekle</Button>
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-card rounded-2xl p-4 border border-border mb-4">
-            <div className="flex items-center gap-3">
-              <Baby className="w-5 h-5 text-primary" />
-              <Label className="text-sm font-medium">Hikaye kimin için?</Label>
-            </div>
-            <Select value={selectedChildId || ""} onValueChange={setSelectedChildId}>
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Çocuk seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                {children.map((child) => (
-                  <SelectItem key={child.id} value={child.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{child.avatar_emoji || "👶"}</span>
-                      <span>{child.name}</span>
-                      {child.age && <span className="text-muted-foreground text-xs">({child.age} yaş)</span>}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <StoryChildSelector className="mb-4" />
+        
+        <StorySettings
+          language={language}
+          onLanguageChange={setLanguage}
+          pageCount={pageCount}
+          onPageCountChange={setPageCount}
+          aiModel={aiModel}
+          onAiModelChange={setAiModel}
+          className="mb-6"
+        />
 
-        {/* Ayarlar */}
-        <div className="bg-card rounded-2xl p-4 border border-border mb-6">
-          <h2 className="font-semibold mb-3">Hikaye Ayarları</h2>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Dil</Label>
-              <Select value={language} onValueChange={(v: "tr" | "en") => setLanguage(v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
-                  <SelectItem value="en">🇬🇧 English</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Sayfa</Label>
-              <Select value={pageCount.toString()} onValueChange={(v) => setPageCount(parseInt(v))}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="15">15</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Model</Label>
-              <Select value={aiModel} onValueChange={(v: any) => setAiModel(v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gemini-3-pro-preview">Gemini 3</SelectItem>
-                  <SelectItem value="gpt-5-mini">GPT-5</SelectItem>
-                  <SelectItem value="gpt-5.1-mini-preview">GPT-5.1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Tema Seçimi */}
         <div className="grid grid-cols-2 gap-3">
           {themes.map((item) => (
             <Button
