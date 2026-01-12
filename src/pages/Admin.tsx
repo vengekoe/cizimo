@@ -44,11 +44,6 @@ const Admin = () => {
     }
   }, [user, authLoading, navigate]);
 
-  useEffect(() => {
-    if (!isAdminLoading && !isAdmin && user) {
-      navigate("/home");
-    }
-  }, [isAdmin, isAdminLoading, user, navigate]);
 
   const filteredUsers = users.filter(u => 
     u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
