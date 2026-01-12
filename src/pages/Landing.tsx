@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Sparkles, BookOpen, Wand2, Heart, Star, Palette, ArrowRight } from "lucide-react";
 import { useEffect } from "react";
+import DemoStoryPlayer from "@/components/DemoStoryPlayer";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -124,6 +125,23 @@ const Landing = () => {
               <div className="text-4xl sm:text-5xl">{emoji}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Demo Story Section */}
+      <section className="relative z-10 py-16 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+              Örnek Hikaye 📖
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              İşte yapay zeka ile oluşturulmuş bir hikaye örneği! 
+              Her hikaye benzersiz ve çocuğunuza özel.
+            </p>
+          </div>
+          
+          <DemoStoryPlayer />
         </div>
       </section>
 
