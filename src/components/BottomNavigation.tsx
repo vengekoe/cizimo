@@ -22,6 +22,7 @@ interface NavItem {
 const BottomNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAdmin } = useSubscription();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -127,6 +128,16 @@ const BottomNavigation = () => {
                 <span>{item.label}</span>
               </Button>
             ))}
+            {isAdmin && (
+              <Button
+                variant={location.pathname === "/admin" ? "default" : "ghost"}
+                onClick={() => navigate("/admin")}
+                className="gap-2"
+              >
+                <Shield className="w-5 h-5" />
+                <span>Admin</span>
+              </Button>
+            )}
           </div>
         </div>
       </nav>
