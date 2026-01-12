@@ -76,7 +76,8 @@ serve(async (req) => {
     async function generateWithOpenAI(
       prompt: string,
       pageIndex: number,
-      attempt: number
+      attempt: number,
+      useFallback = false
     ): Promise<PageResult> {
       const modelToUse = imageModel === "gpt-image-1" ? "gpt-image-1" : "dall-e-3";
       const sizeToUse = modelToUse === "dall-e-3" ? "1792x1024" : "1536x1024";
@@ -111,6 +112,12 @@ serve(async (req) => {
         const errorData = await response.json().catch(() => ({}));
         const errorText = JSON.stringify(errorData);
         console.error(`[Page ${pageIndex + 1}] OpenAI API error (attempt ${attempt}):`, response.status, errorText);
+        
+        // Content policy violation - try fallback to Lovable AI Gemini
+        if (response.status === 400 && errorText.includes("content_policy_violation")) {
+          console.log(`[Page ${pageIndex + 1}] Content policy violation, trying Lovable AI Gemini fallback...`);
+          return generateWithLovableGemini(prompt, pageIndex, 1);
+        }
         
         if (response.status === 429) {
           if (attempt < MAX_RETRIES) {
@@ -159,6 +166,89 @@ serve(async (req) => {
       }
       
       return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+    }
+
+    // Lovable AI Gemini fallback for content policy violations
+    async function generateWithLovableGemini(
+      prompt: string,
+      pageIndex: number,
+      attempt: number
+    ): Promise<PageResult> {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      
+      if (!LOVABLE_API_KEY) {
+        console.error(`[Page ${pageIndex + 1}] LOVABLE_API_KEY not available for fallback`);
+        return { pageIndex, success: false, image: null, attempts: attempt, error: "Fallback API mevcut değil" };
+      }
+      
+      console.log(`[Page ${pageIndex + 1}] Using Lovable AI Gemini fallback (attempt ${attempt}/${MAX_RETRIES})...`);
+      
+      // Sanitize prompt for Gemini - make it more child-friendly
+      const sanitizedPrompt = `Create a cute, friendly, colorful children's book illustration for ages 3-7.
+Style: Whimsical, magical, warm colors, simple shapes, no text or letters.
+Scene: ${prompt.replace(/CRITICAL:[^.]+\./g, '').substring(0, 500)}`;
+      
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image-preview",
+            messages: [
+              {
+                role: "user",
+                content: sanitizedPrompt
+              }
+            ],
+            modalities: ["image", "text"]
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[Page ${pageIndex + 1}] Lovable AI error (attempt ${attempt}):`, response.status, errorText);
+          
+          if (attempt < MAX_RETRIES) {
+            const backoffDelay = getBackoffDelay(attempt);
+            await delay(backoffDelay);
+            return generateWithLovableGemini(prompt, pageIndex, attempt + 1);
+          }
+          return { pageIndex, success: false, image: null, attempts: attempt, error: `Fallback API hatası: ${response.status}` };
+        }
+
+        const data = await response.json();
+        const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        
+        if (imageUrl) {
+          console.log(`[Page ${pageIndex + 1}] ✓ Image generated via Lovable AI fallback (attempt ${attempt})`);
+          return {
+            pageIndex,
+            success: true,
+            image: imageUrl,
+            attempts: attempt
+          };
+        }
+        
+        console.error(`[Page ${pageIndex + 1}] No image in Lovable AI response (attempt ${attempt})`);
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          await delay(backoffDelay);
+          return generateWithLovableGemini(prompt, pageIndex, attempt + 1);
+        }
+        
+        return { pageIndex, success: false, image: null, attempts: attempt, error: "Fallback görsel üretilemedi" };
+      } catch (error) {
+        console.error(`[Page ${pageIndex + 1}] Lovable AI exception:`, error);
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          await delay(backoffDelay);
+          return generateWithLovableGemini(prompt, pageIndex, attempt + 1);
+        }
+        return { pageIndex, success: false, image: null, attempts: attempt, error: "Fallback hatası" };
+      }
     }
 
     async function generateWithGemini(
@@ -282,6 +372,15 @@ serve(async (req) => {
       }
     }
 
+    // Helper to sanitize character names (remove potentially problematic terms)
+    function sanitizeForImageGen(text: string): string {
+      // Remove any potentially problematic patterns while keeping the essence
+      return text
+        .replace(/\b(şiddet|violence|weapon|blood|scary|horror|dark|evil)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     // Generate all images sequentially to avoid rate limits
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
@@ -289,15 +388,20 @@ serve(async (req) => {
         ? page.description.substring(0, 200) + "..." 
         : page.description;
       
-      const prompt = `Create a vibrant, high-quality children's book illustration suitable for ages 3-7. 
-CRITICAL: No text, no letters, no words, no captions anywhere in the image - pure illustration only.
-Character: ${page.character} ${page.emoji}
-Scene: ${shortDesc}
-Theme: ${theme}
-Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality, whimsical and magical atmosphere.
-The illustration should be in landscape orientation filling the entire frame edge-to-edge with no borders.`;
+      // Sanitize inputs for safer image generation
+      const safeCharacter = sanitizeForImageGen(page.character);
+      const safeDesc = sanitizeForImageGen(shortDesc);
+      const safeTheme = sanitizeForImageGen(theme);
       
-      console.log(`\n=== Generating image ${index + 1}/${pages.length}: ${page.character} ===`);
+      const prompt = `Create a vibrant, high-quality children's book illustration suitable for ages 3-7. 
+Style: Colorful, friendly, simple cartoon shapes, warm and inviting, whimsical and magical atmosphere.
+No text, letters, or words in the image.
+Character: ${safeCharacter} ${page.emoji}
+Scene: ${safeDesc}
+Theme: ${safeTheme}
+Landscape orientation, filling the entire frame edge-to-edge with no borders.`;
+      
+      console.log(`\n=== Generating image ${index + 1}/${pages.length}: ${safeCharacter} ===`);
       const result = await generateImageWithRetry(prompt, index);
       results.push(result);
       
