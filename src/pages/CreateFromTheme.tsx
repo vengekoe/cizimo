@@ -47,7 +47,7 @@ const CreateFromTheme = () => {
     }
     
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
-    const imageModel = (profile?.preferred_image_model as "gemini-2.5-flash-image" | "gemini-3-pro-image") || "gemini-2.5-flash-image";
+    const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
     
     const profileData = {
       childId: selectedChild.id,

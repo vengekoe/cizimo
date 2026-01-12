@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getAccessToken } from "../_shared/google-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,7 @@ const pageSchema = z.object({
 const requestSchema = z.object({
   pages: z.array(pageSchema).min(1, "At least one page is required").max(20, "Maximum 20 pages allowed"),
   theme: z.string().min(1, "Theme cannot be empty").max(500, "Theme must be less than 500 characters"),
-  imageModel: z.enum(["dall-e-3", "gpt-image-1"]).optional().default("dall-e-3"),
+  imageModel: z.enum(["dall-e-3", "gpt-image-1", "gemini-2.5-flash-image", "gemini-3-pro-image"]).optional().default("dall-e-3"),
 });
 
 interface PageResult {
@@ -38,13 +39,23 @@ serve(async (req) => {
     const { pages, theme, imageModel } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}, model: ${imageModel}`);
     
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const isOpenAIModel = imageModel === "dall-e-3" || imageModel === "gpt-image-1";
+    const isGeminiModel = imageModel === "gemini-2.5-flash-image" || imageModel === "gemini-3-pro-image";
     
-    if (!OPENAI_API_KEY) {
+    // Check API keys
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const accessToken = isGeminiModel ? await getAccessToken() : null;
+    
+    if (isOpenAIModel && !OPENAI_API_KEY) {
       throw new Error("OPENAI_API_KEY is not configured");
     }
+    
+    if (isGeminiModel && !accessToken && !GOOGLE_AI_API_KEY) {
+      throw new Error("No Gemini authentication available");
+    }
 
-    console.log(`Generating ${pages.length} images using OpenAI gpt-image-1`);
+    console.log(`Generating ${pages.length} images using ${imageModel}`);
 
     const MAX_RETRIES = 3;
     const BASE_DELAY = 2000;
@@ -62,97 +73,196 @@ serve(async (req) => {
       return Math.min(exponentialDelay + jitter, MAX_DELAY);
     }
 
+    async function generateWithOpenAI(
+      prompt: string,
+      pageIndex: number,
+      attempt: number
+    ): Promise<PageResult> {
+      const modelToUse = imageModel === "gpt-image-1" ? "gpt-image-1" : "dall-e-3";
+      const sizeToUse = modelToUse === "dall-e-3" ? "1792x1024" : "1536x1024";
+      
+      console.log(`[Page ${pageIndex + 1}] Calling OpenAI ${modelToUse} (attempt ${attempt}/${MAX_RETRIES})...`);
+      
+      const requestBody: Record<string, unknown> = {
+        model: modelToUse,
+        prompt: prompt,
+        n: 1,
+        size: sizeToUse,
+      };
+      
+      if (modelToUse === "dall-e-3") {
+        requestBody.quality = "standard";
+        requestBody.style = "vivid";
+        requestBody.response_format = "b64_json";
+      } else {
+        requestBody.quality = "medium";
+      }
+      
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorText = JSON.stringify(errorData);
+        console.error(`[Page ${pageIndex + 1}] OpenAI API error (attempt ${attempt}):`, response.status, errorText);
+        
+        if (response.status === 429) {
+          if (attempt < MAX_RETRIES) {
+            const backoffDelay = getBackoffDelay(attempt) * 2;
+            console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+            await delay(backoffDelay);
+            return generateWithOpenAI(prompt, pageIndex, attempt + 1);
+          }
+          return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
+        }
+        
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          await delay(backoffDelay);
+          return generateWithOpenAI(prompt, pageIndex, attempt + 1);
+        }
+        return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
+      }
+
+      const data = await response.json();
+      const imageData = data.data?.[0];
+      
+      if (imageData?.b64_json) {
+        console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
+        return {
+          pageIndex,
+          success: true,
+          image: `data:image/png;base64,${imageData.b64_json}`,
+          attempts: attempt
+        };
+      } else if (imageData?.url) {
+        console.log(`[Page ${pageIndex + 1}] ✓ Image URL received (attempt ${attempt})`);
+        return {
+          pageIndex,
+          success: true,
+          image: imageData.url,
+          attempts: attempt
+        };
+      }
+      
+      console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
+      if (attempt < MAX_RETRIES) {
+        const backoffDelay = getBackoffDelay(attempt);
+        await delay(backoffDelay);
+        return generateWithOpenAI(prompt, pageIndex, attempt + 1);
+      }
+      
+      return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+    }
+
+    async function generateWithGemini(
+      prompt: string,
+      pageIndex: number,
+      attempt: number
+    ): Promise<PageResult> {
+      const geminiModel = imageModel === "gemini-3-pro-image" ? "gemini-2.0-flash-exp" : "gemini-2.0-flash-exp";
+      
+      console.log(`[Page ${pageIndex + 1}] Calling Gemini ${imageModel} (attempt ${attempt}/${MAX_RETRIES})...`);
+      
+      let url: string;
+      let headers: Record<string, string>;
+      
+      if (accessToken) {
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+        headers = {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        };
+      } else {
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GOOGLE_AI_API_KEY}`;
+        headers = {
+          "Content-Type": "application/json",
+        };
+      }
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"]
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Page ${pageIndex + 1}] Gemini API error (attempt ${attempt}):`, response.status, errorText);
+        
+        if (response.status === 429) {
+          if (attempt < MAX_RETRIES) {
+            const backoffDelay = getBackoffDelay(attempt) * 2;
+            console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+            await delay(backoffDelay);
+            return generateWithGemini(prompt, pageIndex, attempt + 1);
+          }
+          return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
+        }
+        
+        if (response.status === 400 && errorText.includes("not available in your country")) {
+          return { pageIndex, success: false, image: null, attempts: attempt, error: "Bölgenizde desteklenmiyor" };
+        }
+        
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          await delay(backoffDelay);
+          return generateWithGemini(prompt, pageIndex, attempt + 1);
+        }
+        return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
+      }
+
+      const data = await response.json();
+      const parts = data?.candidates?.[0]?.content?.parts;
+      
+      if (parts) {
+        for (const part of parts) {
+          if (part.inlineData?.mimeType?.startsWith("image/")) {
+            console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
+            return {
+              pageIndex,
+              success: true,
+              image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+              attempts: attempt
+            };
+          }
+        }
+      }
+      
+      console.error(`[Page ${pageIndex + 1}] No image data in Gemini response (attempt ${attempt})`);
+      if (attempt < MAX_RETRIES) {
+        const backoffDelay = getBackoffDelay(attempt);
+        await delay(backoffDelay);
+        return generateWithGemini(prompt, pageIndex, attempt + 1);
+      }
+      
+      return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+    }
+
     async function generateImageWithRetry(
       prompt: string, 
       pageIndex: number,
       attempt = 1
     ): Promise<PageResult> {
       try {
-        const modelToUse = imageModel === "gpt-image-1" ? "gpt-image-1" : "dall-e-3";
-        const sizeToUse = modelToUse === "dall-e-3" ? "1792x1024" : "1536x1024";
-        
-        console.log(`[Page ${pageIndex + 1}] Calling OpenAI ${modelToUse} (attempt ${attempt}/${MAX_RETRIES})...`);
-        
-        const requestBody: Record<string, unknown> = {
-          model: modelToUse,
-          prompt: prompt,
-          n: 1,
-          size: sizeToUse,
-        };
-        
-        if (modelToUse === "dall-e-3") {
-          requestBody.quality = "standard";
-          requestBody.style = "vivid";
-          requestBody.response_format = "b64_json";
+        if (isOpenAIModel) {
+          return await generateWithOpenAI(prompt, pageIndex, attempt);
         } else {
-          requestBody.quality = "medium";
+          return await generateWithGemini(prompt, pageIndex, attempt);
         }
-        
-        const response = await fetch("https://api.openai.com/v1/images/generations", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorText = JSON.stringify(errorData);
-          console.error(`[Page ${pageIndex + 1}] OpenAI API error (attempt ${attempt}):`, response.status, errorText);
-          
-          if (response.status === 429) {
-            if (attempt < MAX_RETRIES) {
-              const backoffDelay = getBackoffDelay(attempt) * 2;
-              console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
-              await delay(backoffDelay);
-              return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-            }
-            return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
-          }
-          
-          if (attempt < MAX_RETRIES) {
-            const backoffDelay = getBackoffDelay(attempt);
-            await delay(backoffDelay);
-            return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-          }
-          return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
-        }
-
-        const data = await response.json();
-        
-        // OpenAI returns b64_json for gpt-image-1
-        const imageData = data.data?.[0];
-        
-        if (imageData?.b64_json) {
-          console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
-          return {
-            pageIndex,
-            success: true,
-            image: `data:image/png;base64,${imageData.b64_json}`,
-            attempts: attempt
-          };
-        } else if (imageData?.url) {
-          // Fallback to URL if available
-          console.log(`[Page ${pageIndex + 1}] ✓ Image URL received (attempt ${attempt})`);
-          return {
-            pageIndex,
-            success: true,
-            image: imageData.url,
-            attempts: attempt
-          };
-        }
-        
-        console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
-        if (attempt < MAX_RETRIES) {
-          const backoffDelay = getBackoffDelay(attempt);
-          await delay(backoffDelay);
-          return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-        }
-        
-        return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
-        
       } catch (error) {
         console.error(`[Page ${pageIndex + 1}] Error (attempt ${attempt}):`, error);
         
