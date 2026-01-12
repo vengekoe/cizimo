@@ -158,13 +158,6 @@ const Landing = () => {
                   </Button>
                 </>
               )}
-              <Button 
-                onClick={() => navigate('/auth')}
-                className="rounded-full bg-gradient-to-r from-primary to-accent"
-              >
-                Başla
-              </Button>
-
               {/* Mobile menu button */}
               <button
                 className="md:hidden p-2"
