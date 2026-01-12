@@ -36,14 +36,13 @@ export const useChildren = () => {
     }
   }, [user]);
 
-  // Load selected child from localStorage
+  // Load selected child from localStorage (only for story creation, not for library filtering)
   useEffect(() => {
     const stored = localStorage.getItem('selectedChildId');
     if (stored && children.some(c => c.id === stored)) {
       setSelectedChildId(stored);
-    } else if (children.length > 0 && !selectedChildId) {
-      setSelectedChildId(children[0].id);
     }
+    // Don't auto-select first child - let "All Books" be default in library
   }, [children]);
 
   // Save selected child to localStorage
