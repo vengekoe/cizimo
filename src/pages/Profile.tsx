@@ -13,16 +13,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3, Crown, Sparkles, Lock, Shield } from "lucide-react";
+import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3, Crown, Sparkles, Lock, Shield, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ChildCard } from "@/components/ChildCard";
 import { ChildStatsCard } from "@/components/ChildStatsCard";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { SubscriptionPlans } from "@/components/subscription/SubscriptionPlans";
 import { CreditDisplay } from "@/components/subscription/CreditDisplay";
+import { toast } from "sonner";
 
 const Profile = () => {
-  const { user, signOut, loading: authLoading } = useAuth();
+  const { user, signOut, loading: authLoading, updatePassword } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { children, loading: childrenLoading, addChild, updateChild, deleteChild, maxChildren, canAddChild, getRemainingChildSlots } = useChildren();
   const { stats, loading: statsLoading, formatDuration } = useReadingStats();
@@ -30,6 +31,16 @@ const Profile = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   // Form states
   const [displayName, setDisplayName] = useState("");
@@ -295,29 +306,175 @@ const Profile = () => {
           </TabsContent>
 
           <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle>Hesap Bilgileri</CardTitle>
-                <CardDescription>
-                  Kendi profilinizi düzenleyin
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-posta</Label>
-                  <Input id="email" value={user?.email || ""} disabled className="bg-muted" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Görünen İsim</Label>
-                  <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="İsminizi girin"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Hesap Bilgileri</CardTitle>
+                  <CardDescription>
+                    Kendi profilinizi düzenleyin
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-posta</Label>
+                    <Input id="email" value={user?.email || ""} disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Görünen İsim</Label>
+                    <Input
+                      id="displayName"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="İsminizi girin"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <KeyRound className="w-5 h-5" />
+                    Şifre Değiştir
+                  </CardTitle>
+                  <CardDescription>
+                    Hesabınızın güvenliği için şifrenizi değiştirin
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {passwordError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{passwordError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">Yeni Şifre</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setPasswordError("");
+                        }}
+                        placeholder="En az 8 karakter, harf ve rakam içermeli"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    {/* Password strength indicators */}
+                    <div className="space-y-1 mt-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${newPassword.length >= 8 ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                          {newPassword.length >= 8 ? <CheckCircle2 className="w-3 h-3" /> : <span className="text-[10px]">•</span>}
+                        </div>
+                        <span className={newPassword.length >= 8 ? 'text-green-600' : 'text-muted-foreground'}>En az 8 karakter</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${/[a-zA-Z]/.test(newPassword) ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                          {/[a-zA-Z]/.test(newPassword) ? <CheckCircle2 className="w-3 h-3" /> : <span className="text-[10px]">•</span>}
+                        </div>
+                        <span className={/[a-zA-Z]/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}>En az bir harf</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${/[0-9]/.test(newPassword) ? 'bg-green-100 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                          {/[0-9]/.test(newPassword) ? <CheckCircle2 className="w-3 h-3" /> : <span className="text-[10px]">•</span>}
+                        </div>
+                        <span className={/[0-9]/.test(newPassword) ? 'text-green-600' : 'text-muted-foreground'}>En az bir rakam</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Yeni Şifre (Tekrar)</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setPasswordError("");
+                        }}
+                        placeholder="Yeni şifrenizi tekrar girin"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                    {confirmPassword && newPassword !== confirmPassword && (
+                      <p className="text-xs text-destructive">Şifreler eşleşmiyor</p>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={async () => {
+                      // Validation
+                      if (newPassword.length < 8) {
+                        setPasswordError("Şifre en az 8 karakter olmalıdır");
+                        return;
+                      }
+                      if (!/[a-zA-Z]/.test(newPassword)) {
+                        setPasswordError("Şifre en az bir harf içermelidir");
+                        return;
+                      }
+                      if (!/[0-9]/.test(newPassword)) {
+                        setPasswordError("Şifre en az bir rakam içermelidir");
+                        return;
+                      }
+                      if (newPassword !== confirmPassword) {
+                        setPasswordError("Şifreler eşleşmiyor");
+                        return;
+                      }
+
+                      setChangingPassword(true);
+                      setPasswordError("");
+                      
+                      const { error } = await updatePassword(newPassword);
+                      
+                      if (error) {
+                        setPasswordError(error.message || "Şifre değiştirilemedi");
+                      } else {
+                        toast.success("Şifreniz başarıyla değiştirildi");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                      }
+                      
+                      setChangingPassword(false);
+                    }}
+                    disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                    className="w-full"
+                  >
+                    {changingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Değiştiriliyor...
+                      </>
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4 mr-2" />
+                        Şifreyi Değiştir
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">
