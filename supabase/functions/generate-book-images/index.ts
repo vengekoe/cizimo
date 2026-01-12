@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const pageSchema = z.object({
   character: z.string().max(200),
-  emoji: z.string().max(10),
+  emoji: z.string().max(50), // Increased to allow for multiple emojis
   description: z.string().max(2000), // Increased limit for longer descriptions
 });
 
