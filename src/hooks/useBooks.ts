@@ -650,7 +650,8 @@ export const useBooks = () => {
     pageCount: number = 10, 
     model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview",
     profileData?: ProfileForStory,
-    category?: string
+    category?: string,
+    imageModel?: "gemini-2.5-flash-image" | "gemini-3-pro-image"
   ): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Hikaye oluşturuluyor...' });
@@ -686,7 +687,8 @@ export const useBooks = () => {
             description: `Book cover for ${storyData.story.title}`,
             sound: ""
           }],
-          theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`
+          theme: `${theme} - beautiful book cover illustration, children's book style, colorful and inviting`,
+          imageModel: imageModel || "gemini-2.5-flash-image"
         },
       });
 
@@ -702,7 +704,8 @@ export const useBooks = () => {
       const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: storyData.story.pages,
-          theme
+          theme,
+          imageModel: imageModel || "gemini-2.5-flash-image"
         },
       });
 

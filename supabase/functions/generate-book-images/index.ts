@@ -17,6 +17,7 @@ const pageSchema = z.object({
 const requestSchema = z.object({
   pages: z.array(pageSchema).min(1, "At least one page is required").max(20, "Maximum 20 pages allowed"),
   theme: z.string().min(1, "Theme cannot be empty").max(500, "Theme must be less than 500 characters"),
+  imageModel: z.enum(["gemini-2.5-flash-image", "gemini-3-pro-image"]).optional().default("gemini-2.5-flash-image"),
 });
 
 // Result type for each page generation
@@ -36,18 +37,36 @@ serve(async (req) => {
   try {
     const body = await req.json();
     console.log("Request received, parsing...");
-    const { pages, theme } = requestSchema.parse(body);
-    console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
+    const { pages, theme, imageModel } = requestSchema.parse(body);
+    console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}, model: ${imageModel}`);
     
-    // Check for service account first, then API key
+    // Check for service account first, then API key, then Lovable AI
     const accessToken = await getAccessToken();
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!accessToken && !GOOGLE_AI_API_KEY) {
-      throw new Error("No Gemini authentication available (neither service account nor API key)");
+    // Determine which API to use
+    const useLovableAI = !accessToken && !GOOGLE_AI_API_KEY && LOVABLE_API_KEY;
+    
+    if (!accessToken && !GOOGLE_AI_API_KEY && !LOVABLE_API_KEY) {
+      throw new Error("No Gemini authentication available (neither service account, API key, nor Lovable AI)");
     }
 
-    console.log(`Generating ${pages.length} images using Google Gemini API ${accessToken ? '(service account)' : '(API key)'} for theme: ${theme}`);
+    // Map model selection to actual model names
+    const modelMap: Record<string, { google: string, lovable: string }> = {
+      "gemini-2.5-flash-image": { 
+        google: "gemini-2.0-flash-preview-image-generation", 
+        lovable: "google/gemini-2.5-flash-image-preview" 
+      },
+      "gemini-3-pro-image": { 
+        google: "gemini-2.0-flash-preview-image-generation", // Fallback for direct Google API
+        lovable: "google/gemini-3-pro-image-preview" 
+      },
+    };
+    
+    const selectedModel = modelMap[imageModel] || modelMap["gemini-2.5-flash-image"];
+
+    console.log(`Generating ${pages.length} images using ${useLovableAI ? 'Lovable AI' : accessToken ? 'service account' : 'API key'} with model: ${imageModel}`);
 
     const MAX_RETRIES = 5;
     const BASE_DELAY = 2000; // 2 seconds base delay
@@ -72,127 +91,157 @@ serve(async (req) => {
       attempt = 1
     ): Promise<PageResult> {
       try {
-        console.log(`[Page ${pageIndex + 1}] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES})...`);
+        console.log(`[Page ${pageIndex + 1}] Calling ${useLovableAI ? 'Lovable AI' : 'Gemini API'} (attempt ${attempt}/${MAX_RETRIES})...`);
         
-        const model = "gemini-2.0-flash-preview-image-generation";
-        let url: string;
-        let headers: Record<string, string>;
+        let response: Response;
         
-        if (accessToken) {
-          url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-          headers = {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          };
-        } else {
-          url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_API_KEY}`;
-          headers = {
-            "Content-Type": "application/json",
-          };
-        }
-        
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-              responseModalities: ["TEXT", "IMAGE"]
-            }
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[Page ${pageIndex + 1}] Gemini API error (attempt ${attempt}):`, response.status, errorText);
+        if (useLovableAI) {
+          // Use Lovable AI Gateway
+          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: selectedModel.lovable,
+              messages: [{ role: "user", content: prompt }],
+              modalities: ["image", "text"],
+            }),
+          });
           
-          // Rate limit - use longer backoff
-          if (response.status === 429) {
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Page ${pageIndex + 1}] Lovable AI error (attempt ${attempt}):`, response.status, errorText);
+            
+            if (response.status === 429) {
+              if (attempt < MAX_RETRIES) {
+                const backoffDelay = getBackoffDelay(attempt) * 2;
+                console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+                await delay(backoffDelay);
+                return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+              }
+              return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
+            }
+            
+            if (response.status === 402) {
+              return { pageIndex, success: false, image: null, attempts: attempt, error: "Kredi yetersiz" };
+            }
+            
             if (attempt < MAX_RETRIES) {
-              const backoffDelay = getBackoffDelay(attempt) * 2; // Double delay for rate limits
-              console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+              const backoffDelay = getBackoffDelay(attempt);
               await delay(backoffDelay);
               return generateImageWithRetry(prompt, pageIndex, attempt + 1);
             }
-            return {
-              pageIndex,
-              success: false,
-              image: null,
-              attempts: attempt,
-              error: "Rate limit aşıldı, maksimum deneme sayısına ulaşıldı"
-            };
+            return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
           }
           
-          // Auth error - don't retry
-          if (response.status === 403) {
-            return {
-              pageIndex,
-              success: false,
-              image: null,
-              attempts: attempt,
-              error: "API erişim izni yok"
-            };
+          const data = await response.json();
+          const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          
+          if (imageUrl) {
+            console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully via Lovable AI (attempt ${attempt})`);
+            return { pageIndex, success: true, image: imageUrl, attempts: attempt };
           }
           
-          // Other errors - retry with backoff
+          console.error(`[Page ${pageIndex + 1}] No image in Lovable AI response (attempt ${attempt})`);
           if (attempt < MAX_RETRIES) {
             const backoffDelay = getBackoffDelay(attempt);
-            console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
+            await delay(backoffDelay);
+            return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+          }
+          return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+          
+        } else {
+          // Use direct Google API
+          const model = selectedModel.google;
+          let url: string;
+          let headers: Record<string, string>;
+          
+          if (accessToken) {
+            url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            headers = {
+              "Authorization": `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            };
+          } else {
+            url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_API_KEY}`;
+            headers = {
+              "Content-Type": "application/json",
+            };
+          }
+          
+          response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
+              generationConfig: {
+                responseModalities: ["TEXT", "IMAGE"]
+              }
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[Page ${pageIndex + 1}] Gemini API error (attempt ${attempt}):`, response.status, errorText);
+            
+            if (response.status === 429) {
+              if (attempt < MAX_RETRIES) {
+                const backoffDelay = getBackoffDelay(attempt) * 2;
+                console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+                await delay(backoffDelay);
+                return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+              }
+              return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
+            }
+            
+            if (response.status === 403) {
+              return { pageIndex, success: false, image: null, attempts: attempt, error: "API erişim izni yok" };
+            }
+            
+            if (attempt < MAX_RETRIES) {
+              const backoffDelay = getBackoffDelay(attempt);
+              await delay(backoffDelay);
+              return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+            }
+            return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
+          }
+
+          const data = await response.json();
+          
+          // Extract base64 image from Gemini response
+          const parts = data?.candidates?.[0]?.content?.parts;
+          if (parts) {
+            for (const part of parts) {
+              if (part.inlineData?.mimeType?.startsWith("image/")) {
+                console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
+                return {
+                  pageIndex,
+                  success: true,
+                  image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                  attempts: attempt
+                };
+              }
+            }
+          }
+          
+          console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
+          if (attempt < MAX_RETRIES) {
+            const backoffDelay = getBackoffDelay(attempt);
             await delay(backoffDelay);
             return generateImageWithRetry(prompt, pageIndex, attempt + 1);
           }
           
-          return {
-            pageIndex,
-            success: false,
-            image: null,
-            attempts: attempt,
-            error: `API hatası: ${response.status}`
-          };
+          return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
         }
-
-        const data = await response.json();
-        
-        // Extract base64 image from Gemini response
-        const parts = data?.candidates?.[0]?.content?.parts;
-        if (parts) {
-          for (const part of parts) {
-            if (part.inlineData?.mimeType?.startsWith("image/")) {
-              console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
-              return {
-                pageIndex,
-                success: true,
-                image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                attempts: attempt
-              };
-            }
-          }
-        }
-        
-        // No image in response - retry
-        console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
-        if (attempt < MAX_RETRIES) {
-          const backoffDelay = getBackoffDelay(attempt);
-          console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
-          await delay(backoffDelay);
-          return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-        }
-        
-        return {
-          pageIndex,
-          success: false,
-          image: null,
-          attempts: attempt,
-          error: "Görsel yanıtta bulunamadı"
-        };
       } catch (error) {
         console.error(`[Page ${pageIndex + 1}] Error (attempt ${attempt}):`, error);
         
         if (attempt < MAX_RETRIES) {
           const backoffDelay = getBackoffDelay(attempt);
-          console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
           await delay(backoffDelay);
           return generateImageWithRetry(prompt, pageIndex, attempt + 1);
         }
