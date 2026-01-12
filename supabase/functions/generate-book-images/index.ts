@@ -50,18 +50,19 @@ serve(async (req) => {
       try {
         console.log(`Calling Google Gemini API (attempt ${attempt})...`);
         
-        // Build request URL and headers based on auth method
+        // Use Gemini 3 Pro Image model with service account authentication
+        const model = "gemini-2.0-flash-preview-image-generation";
         let url: string;
         let headers: Record<string, string>;
         
         if (accessToken) {
-          url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`;
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
           headers = {
             "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           };
         } else {
-          url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`;
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_API_KEY}`;
           headers = {
             "Content-Type": "application/json",
           };
