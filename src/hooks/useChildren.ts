@@ -25,10 +25,13 @@ export const useChildren = () => {
   const [children, setChildren] = useState<ChildData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [maxChildren, setMaxChildren] = useState<number>(1);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadChildren();
+      loadSubscriptionLimits();
     } else {
       setChildren([]);
       setSelectedChildId(null);
@@ -52,6 +55,39 @@ export const useChildren = () => {
     }
   }, [selectedChildId]);
 
+  const loadSubscriptionLimits = async () => {
+    if (!user) return;
+
+    try {
+      // Check if user is admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (roleData) {
+        setIsAdmin(true);
+        setMaxChildren(Infinity);
+        return;
+      }
+
+      // Get subscription limits
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("max_children")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (subscription) {
+        setMaxChildren(subscription.max_children);
+      }
+    } catch (error) {
+      console.error("Load subscription limits error:", error);
+    }
+  };
+
   const loadChildren = async () => {
     if (!user) return;
 
@@ -72,8 +108,24 @@ export const useChildren = () => {
     }
   };
 
+  const canAddChild = () => {
+    if (isAdmin) return true;
+    return children.length < maxChildren;
+  };
+
+  const getRemainingChildSlots = () => {
+    if (isAdmin) return Infinity;
+    return Math.max(0, maxChildren - children.length);
+  };
+
   const addChild = async (childData: Partial<ChildData>) => {
     if (!user) return null;
+
+    // Check subscription limit
+    if (!canAddChild()) {
+      toast.error(`Çocuk profili limitine ulaştınız (${maxChildren}/${maxChildren}). Daha fazla profil için paketinizi yükseltin.`);
+      return null;
+    }
 
     try {
       const { data, error } = await supabase
@@ -189,5 +241,9 @@ export const useChildren = () => {
     updateChild,
     deleteChild,
     loadChildren,
+    maxChildren,
+    canAddChild,
+    getRemainingChildSlots,
+    isAdmin,
   };
 };

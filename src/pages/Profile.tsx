@@ -4,22 +4,29 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
 import { useReadingStats } from "@/hooks/useReadingStats";
+import { useSubscription, TIER_NAMES } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, User, Settings, Baby, LogOut, Save, Plus, BarChart3, Crown, Sparkles, Lock } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ChildCard } from "@/components/ChildCard";
 import { ChildStatsCard } from "@/components/ChildStatsCard";
+import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
+import { SubscriptionPlans } from "@/components/subscription/SubscriptionPlans";
+import { CreditDisplay } from "@/components/subscription/CreditDisplay";
 
 const Profile = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
-  const { children, loading: childrenLoading, addChild, updateChild, deleteChild } = useChildren();
+  const { children, loading: childrenLoading, addChild, updateChild, deleteChild, maxChildren, canAddChild, getRemainingChildSlots } = useChildren();
   const { stats, loading: statsLoading, formatDuration } = useReadingStats();
+  const { subscription, isAdmin, hasFeature } = useSubscription();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
@@ -82,11 +89,14 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <User className="w-6 h-6 text-primary" />
-            Profil
-          </h1>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <User className="w-6 h-6 text-primary" />
+              Profil
+            </h1>
+            <SubscriptionBadge />
+          </div>
           <Button variant="outline" size="sm" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-2" />
             Çıkış
@@ -94,10 +104,14 @@ const Profile = () => {
         </div>
 
         <Tabs defaultValue="children" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="children" className="flex items-center gap-1 text-xs sm:text-sm">
               <Baby className="w-4 h-4" />
               <span className="hidden sm:inline">Çocuklar</span>
+            </TabsTrigger>
+            <TabsTrigger value="subscription" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Crown className="w-4 h-4" />
+              <span className="hidden sm:inline">Paket</span>
             </TabsTrigger>
             <TabsTrigger value="stats" className="flex items-center gap-1 text-xs sm:text-sm">
               <BarChart3 className="w-4 h-4" />
@@ -124,17 +138,46 @@ const Profile = () => {
                   Her çocuk için ayrı profil ve kişiselleştirilmiş hikayeler oluşturun
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Child limit indicator */}
+                {!isAdmin && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Çocuk Profilleri</span>
+                      <span className="text-sm">
+                        <span className="font-bold text-primary">{children.length}</span>
+                        <span className="text-muted-foreground"> / {maxChildren}</span>
+                      </span>
+                    </div>
+                    <Progress value={(children.length / maxChildren) * 100} className="h-2" />
+                    {!canAddChild() && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Profil limitine ulaştınız. Daha fazla çocuk eklemek için paketinizi yükseltin.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Add child form */}
                 <div className="flex gap-2">
                   <Input
                     value={newChildName}
                     onChange={(e) => setNewChildName(e.target.value)}
                     placeholder="Çocuğun adı..."
                     onKeyDown={(e) => e.key === "Enter" && handleAddChild()}
+                    disabled={!canAddChild()}
                   />
-                  <Button onClick={handleAddChild} disabled={addingChild || !newChildName.trim()}>
+                  <Button 
+                    onClick={handleAddChild} 
+                    disabled={addingChild || !newChildName.trim() || !canAddChild()}
+                  >
                     {addingChild ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : !canAddChild() ? (
+                      <>
+                        <Lock className="w-4 h-4 mr-1" />
+                        Limit
+                      </>
                     ) : (
                       <>
                         <Plus className="w-4 h-4 mr-1" />
@@ -143,6 +186,16 @@ const Profile = () => {
                     )}
                   </Button>
                 </div>
+
+                {!canAddChild() && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                    <Sparkles className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-300">
+                      <span className="font-medium">Daha fazla çocuk profili eklemek için </span>
+                      paketinizi yükseltin. Mevcut paketiniz {maxChildren} çocuk profiline izin veriyor.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 
@@ -170,6 +223,29 @@ const Profile = () => {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="subscription">
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="w-5 h-5" />
+                  Abonelik Paketim
+                </CardTitle>
+                <CardDescription>
+                  {subscription ? (
+                    <>Mevcut paketiniz: <strong>{TIER_NAMES[subscription.tier]}</strong></>
+                  ) : (
+                    "Paket bilgilerinizi görüntüleyin"
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CreditDisplay />
+              </CardContent>
+            </Card>
+
+            <SubscriptionPlans />
           </TabsContent>
 
           <TabsContent value="stats">
