@@ -6,7 +6,8 @@ import { useChildren } from "@/hooks/useChildren";
 import { useBookShares } from "@/hooks/useBookShares";
 import { useBookCategories } from "@/hooks/useBookCategories";
 import { Button } from "@/components/ui/button";
-import { Trash2, Star, Clock, Paintbrush, Baby, Share2, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Trash2, Star, Clock, Paintbrush, Baby, Share2, Search, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [childFilterId, setChildFilterId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [shareDialogBook, setShareDialogBook] = useState<{ id: string; title: string; childId?: string } | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ const Home = () => {
   // Get shared book IDs for selected child filter
   const sharedBookIds = childFilterId ? getSharedBooksForChild(childFilterId) : [];
 
-  // Filter books by selected child (owned or shared) and category
+  // Filter books by selected child (owned or shared), category, and search
   const filteredBooks = books.filter(book => {
     // Child filter
     const childMatch = childFilterId 
@@ -59,7 +61,14 @@ const Home = () => {
       ? (book.category || "other") === selectedCategory
       : true;
     
-    return childMatch && categoryMatch;
+    // Search filter
+    const searchLower = searchQuery.toLowerCase().trim();
+    const searchMatch = searchLower
+      ? book.title.toLowerCase().includes(searchLower) || 
+        book.theme.toLowerCase().includes(searchLower)
+      : true;
+    
+    return childMatch && categoryMatch && searchMatch;
   });
 
   const sortedBooks = [...filteredBooks].sort((a, b) => {
@@ -106,7 +115,26 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Çocuk Filtresi */}
+        {/* Arama */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Kitap ara (başlık veya tema)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9 h-10 bg-card border-border"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {children.length > 0 && (
           <div className="bg-card rounded-2xl p-3 border border-border mb-4">
             <div className="flex items-center gap-2">
