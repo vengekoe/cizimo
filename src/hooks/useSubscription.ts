@@ -86,7 +86,7 @@ export const useSubscription = () => {
   });
 
   // Fetch all subscription features
-  const { data: allFeatures } = useQuery({
+  const { data: allFeatures, isLoading: allFeaturesLoading } = useQuery({
     queryKey: ["subscription_features"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -207,6 +207,7 @@ export const useSubscription = () => {
     subscriptionLoading,
     currentFeatures,
     allFeatures,
+    allFeaturesLoading,
     isAdmin: isAdmin ?? false,
     isAdminLoading,
     remainingCredits,
