@@ -13,10 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { 
-  Loader2, Shield, Users, BarChart3, Crown, ArrowLeft, 
+  Loader2, Shield, Users, BarChart3, Crown, 
   Search, RefreshCw, UserCheck, UserX, RotateCcw, Book, Baby, Clock,
   TrendingUp, Activity, Zap, AlertTriangle, CheckCircle2, Settings
 } from "lucide-react";
+import BottomNavigation from "@/components/BottomNavigation";
 import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 
@@ -103,9 +104,6 @@ const Admin = () => {
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/home")}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <Shield className="w-6 h-6 text-primary" />
@@ -729,6 +727,7 @@ const Admin = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <BottomNavigation />
     </div>
   );
 };
