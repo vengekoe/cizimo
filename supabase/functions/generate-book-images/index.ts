@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { getAccessToken } from "../_shared/google-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,17 +9,16 @@ const corsHeaders = {
 
 const pageSchema = z.object({
   character: z.string().max(200),
-  emoji: z.string().max(50), // Increased to allow for multiple emojis
-  description: z.string().max(2000), // Increased limit for longer descriptions
+  emoji: z.string().max(50),
+  description: z.string().max(2000),
 });
 
 const requestSchema = z.object({
   pages: z.array(pageSchema).min(1, "At least one page is required").max(20, "Maximum 20 pages allowed"),
   theme: z.string().min(1, "Theme cannot be empty").max(500, "Theme must be less than 500 characters"),
-  imageModel: z.enum(["gemini-2.5-flash-image", "gemini-3-pro-image"]).optional().default("gemini-2.5-flash-image"),
+  imageModel: z.enum(["dall-e-3", "gpt-image-1"]).optional().default("dall-e-3"),
 });
 
-// Result type for each page generation
 interface PageResult {
   pageIndex: number;
   success: boolean;
@@ -40,38 +38,17 @@ serve(async (req) => {
     const { pages, theme, imageModel } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}, model: ${imageModel}`);
     
-    // Check for service account first, then API key, then Lovable AI
-    const accessToken = await getAccessToken();
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    // Determine which API to use
-    const useLovableAI = !accessToken && !GOOGLE_AI_API_KEY && LOVABLE_API_KEY;
-    
-    if (!accessToken && !GOOGLE_AI_API_KEY && !LOVABLE_API_KEY) {
-      throw new Error("No Gemini authentication available (neither service account, API key, nor Lovable AI)");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
-    // Map model selection to actual model names
-    // For direct Google API: use imagen-3.0-generate-002 via Vertex AI or gemini-2.0-flash-exp for experimental image output
-    const modelMap: Record<string, { google: string, lovable: string }> = {
-      "gemini-2.5-flash-image": { 
-        google: "gemini-2.0-flash-exp", 
-        lovable: "google/gemini-2.5-flash-image-preview" 
-      },
-      "gemini-3-pro-image": { 
-        google: "gemini-2.0-flash-exp", 
-        lovable: "google/gemini-3-pro-image-preview" 
-      },
-    };
-    
-    const selectedModel = modelMap[imageModel] || modelMap["gemini-2.5-flash-image"];
+    console.log(`Generating ${pages.length} images using OpenAI gpt-image-1`);
 
-    console.log(`Generating ${pages.length} images using ${useLovableAI ? 'Lovable AI' : accessToken ? 'service account' : 'API key'} with model: ${imageModel}`);
-
-    const MAX_RETRIES = 5;
-    const BASE_DELAY = 2000; // 2 seconds base delay
-    const MAX_DELAY = 60000; // Maximum 60 seconds delay
+    const MAX_RETRIES = 3;
+    const BASE_DELAY = 2000;
+    const MAX_DELAY = 30000;
     
     const results: PageResult[] = [];
 
@@ -79,10 +56,9 @@ serve(async (req) => {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    // Exponential backoff with jitter
     function getBackoffDelay(attempt: number): number {
       const exponentialDelay = BASE_DELAY * Math.pow(2, attempt - 1);
-      const jitter = Math.random() * 1000; // 0-1 second jitter
+      const jitter = Math.random() * 1000;
       return Math.min(exponentialDelay + jitter, MAX_DELAY);
     }
 
@@ -92,152 +68,91 @@ serve(async (req) => {
       attempt = 1
     ): Promise<PageResult> {
       try {
-        console.log(`[Page ${pageIndex + 1}] Calling ${useLovableAI ? 'Lovable AI' : 'Gemini API'} (attempt ${attempt}/${MAX_RETRIES})...`);
+        const modelToUse = imageModel === "gpt-image-1" ? "gpt-image-1" : "dall-e-3";
+        const sizeToUse = modelToUse === "dall-e-3" ? "1792x1024" : "1536x1024";
         
-        let response: Response;
+        console.log(`[Page ${pageIndex + 1}] Calling OpenAI ${modelToUse} (attempt ${attempt}/${MAX_RETRIES})...`);
         
-        if (useLovableAI) {
-          // Use Lovable AI Gateway
-          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: selectedModel.lovable,
-              messages: [{ role: "user", content: prompt }],
-              modalities: ["image", "text"],
-            }),
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[Page ${pageIndex + 1}] Lovable AI error (attempt ${attempt}):`, response.status, errorText);
-            
-            if (response.status === 429) {
-              if (attempt < MAX_RETRIES) {
-                const backoffDelay = getBackoffDelay(attempt) * 2;
-                console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
-                await delay(backoffDelay);
-                return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-              }
-              return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
-            }
-            
-            if (response.status === 402) {
-              return { pageIndex, success: false, image: null, attempts: attempt, error: "Kredi yetersiz" };
-            }
-            
-            if (attempt < MAX_RETRIES) {
-              const backoffDelay = getBackoffDelay(attempt);
-              await delay(backoffDelay);
-              return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-            }
-            return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
-          }
-          
-          const data = await response.json();
-          const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          
-          if (imageUrl) {
-            console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully via Lovable AI (attempt ${attempt})`);
-            return { pageIndex, success: true, image: imageUrl, attempts: attempt };
-          }
-          
-          console.error(`[Page ${pageIndex + 1}] No image in Lovable AI response (attempt ${attempt})`);
-          if (attempt < MAX_RETRIES) {
-            const backoffDelay = getBackoffDelay(attempt);
-            await delay(backoffDelay);
-            return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-          }
-          return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
-          
+        const requestBody: Record<string, unknown> = {
+          model: modelToUse,
+          prompt: prompt,
+          n: 1,
+          size: sizeToUse,
+        };
+        
+        if (modelToUse === "dall-e-3") {
+          requestBody.quality = "standard";
+          requestBody.style = "vivid";
+          requestBody.response_format = "b64_json";
         } else {
-          // Use direct Google API
-          const model = selectedModel.google;
-          let url: string;
-          let headers: Record<string, string>;
-          
-          if (accessToken) {
-            url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-            headers = {
-              "Authorization": `Bearer ${accessToken}`,
-              "Content-Type": "application/json",
-            };
-          } else {
-            url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GOOGLE_AI_API_KEY}`;
-            headers = {
-              "Content-Type": "application/json",
-            };
-          }
-          
-          response = await fetch(url, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              contents: [{
-                parts: [{ text: prompt }]
-              }],
-              generationConfig: {
-                responseModalities: ["TEXT", "IMAGE"]
-              }
-            }),
-          });
+          requestBody.quality = "medium";
+        }
+        
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[Page ${pageIndex + 1}] Gemini API error (attempt ${attempt}):`, response.status, errorText);
-            
-            if (response.status === 429) {
-              if (attempt < MAX_RETRIES) {
-                const backoffDelay = getBackoffDelay(attempt) * 2;
-                console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
-                await delay(backoffDelay);
-                return generateImageWithRetry(prompt, pageIndex, attempt + 1);
-              }
-              return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
-            }
-            
-            if (response.status === 403) {
-              return { pageIndex, success: false, image: null, attempts: attempt, error: "API erişim izni yok" };
-            }
-            
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorText = JSON.stringify(errorData);
+          console.error(`[Page ${pageIndex + 1}] OpenAI API error (attempt ${attempt}):`, response.status, errorText);
+          
+          if (response.status === 429) {
             if (attempt < MAX_RETRIES) {
-              const backoffDelay = getBackoffDelay(attempt);
+              const backoffDelay = getBackoffDelay(attempt) * 2;
+              console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
               await delay(backoffDelay);
               return generateImageWithRetry(prompt, pageIndex, attempt + 1);
             }
-            return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
-          }
-
-          const data = await response.json();
-          
-          // Extract base64 image from Gemini response
-          const parts = data?.candidates?.[0]?.content?.parts;
-          if (parts) {
-            for (const part of parts) {
-              if (part.inlineData?.mimeType?.startsWith("image/")) {
-                console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
-                return {
-                  pageIndex,
-                  success: true,
-                  image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                  attempts: attempt
-                };
-              }
-            }
+            return { pageIndex, success: false, image: null, attempts: attempt, error: "Rate limit aşıldı" };
           }
           
-          console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
           if (attempt < MAX_RETRIES) {
             const backoffDelay = getBackoffDelay(attempt);
             await delay(backoffDelay);
             return generateImageWithRetry(prompt, pageIndex, attempt + 1);
           }
-          
-          return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+          return { pageIndex, success: false, image: null, attempts: attempt, error: `API hatası: ${response.status}` };
         }
+
+        const data = await response.json();
+        
+        // OpenAI returns b64_json for gpt-image-1
+        const imageData = data.data?.[0];
+        
+        if (imageData?.b64_json) {
+          console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
+          return {
+            pageIndex,
+            success: true,
+            image: `data:image/png;base64,${imageData.b64_json}`,
+            attempts: attempt
+          };
+        } else if (imageData?.url) {
+          // Fallback to URL if available
+          console.log(`[Page ${pageIndex + 1}] ✓ Image URL received (attempt ${attempt})`);
+          return {
+            pageIndex,
+            success: true,
+            image: imageData.url,
+            attempts: attempt
+          };
+        }
+        
+        console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          await delay(backoffDelay);
+          return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+        }
+        
+        return { pageIndex, success: false, image: null, attempts: attempt, error: "Görsel yanıtta bulunamadı" };
+        
       } catch (error) {
         console.error(`[Page ${pageIndex + 1}] Error (attempt ${attempt}):`, error);
         
@@ -257,11 +172,11 @@ serve(async (req) => {
       }
     }
 
-    // Generate all images
+    // Generate all images sequentially to avoid rate limits
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
-      const shortDesc = page.description.length > 150 
-        ? page.description.substring(0, 150) + "..." 
+      const shortDesc = page.description.length > 200 
+        ? page.description.substring(0, 200) + "..." 
         : page.description;
       
       const prompt = `Create a vibrant, high-quality children's book illustration suitable for ages 3-7. 
@@ -269,8 +184,8 @@ CRITICAL: No text, no letters, no words, no captions anywhere in the image - pur
 Character: ${page.character} ${page.emoji}
 Scene: ${shortDesc}
 Theme: ${theme}
-Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality.
-The illustration should be in landscape orientation (16:9 aspect ratio), filling the entire frame edge-to-edge with no borders or margins.`;
+Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality, whimsical and magical atmosphere.
+The illustration should be in landscape orientation filling the entire frame edge-to-edge with no borders.`;
       
       console.log(`\n=== Generating image ${index + 1}/${pages.length}: ${page.character} ===`);
       const result = await generateImageWithRetry(prompt, index);
@@ -278,7 +193,7 @@ The illustration should be in landscape orientation (16:9 aspect ratio), filling
       
       // Delay between requests to avoid rate limiting
       if (index < pages.length - 1) {
-        await delay(1500);
+        await delay(2000);
       }
     }
 
@@ -296,7 +211,6 @@ The illustration should be in landscape orientation (16:9 aspect ratio), filling
       });
     }
 
-    // Return detailed response
     return new Response(JSON.stringify({ 
       images: results.map(r => r.image),
       summary: {

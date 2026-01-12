@@ -280,16 +280,16 @@ const Profile = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gemini-2.5-flash-image">
+                      <SelectItem value="dall-e-3">
                         <div className="flex flex-col">
-                          <span>⚡ Google Gemini 2.5 Flash Image</span>
-                          <span className="text-xs text-muted-foreground">Nano Banana - Hızlı, verimli görsel üretimi</span>
+                          <span>🎨 OpenAI DALL-E 3</span>
+                          <span className="text-xs text-muted-foreground">Önerilen - Yüksek kalite, detaylı görseller</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value="gemini-3-pro-image">
+                      <SelectItem value="gpt-image-1">
                         <div className="flex flex-col">
-                          <span>🎨 Google Gemini 3 Pro Image Preview</span>
-                          <span className="text-xs text-muted-foreground">Yeni nesil - Yüksek kaliteli, detaylı görseller</span>
+                          <span>✨ OpenAI GPT Image 1</span>
+                          <span className="text-xs text-muted-foreground">En yeni - Organizasyon doğrulaması gerekli</span>
                         </div>
                       </SelectItem>
                     </SelectContent>
