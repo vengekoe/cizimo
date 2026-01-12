@@ -28,6 +28,102 @@ interface PageResult {
   error?: string;
 }
 
+// Copyrighted character names and brands that should be replaced with generic descriptions
+const COPYRIGHTED_CHARACTERS: { [key: string]: string } = {
+  // Marvel
+  'hulk': 'green strong giant',
+  'iron man': 'armored hero',
+  'ironman': 'armored hero',
+  'spider-man': 'web-slinging hero',
+  'spiderman': 'web-slinging hero',
+  'örümcek adam': 'web-slinging hero',
+  'thor': 'thunder god hero',
+  'captain america': 'shield-wielding hero',
+  'kaptan amerika': 'shield-wielding hero',
+  'black widow': 'spy hero',
+  'wolverine': 'clawed hero',
+  'deadpool': 'masked hero',
+  'thanos': 'powerful alien',
+  'venom': 'black creature',
+  'loki': 'trickster mage',
+  
+  // DC
+  'batman': 'bat-costumed hero',
+  'superman': 'flying super hero',
+  'wonder woman': 'amazon warrior princess',
+  'flash': 'fast running hero',
+  'aquaman': 'ocean king hero',
+  'joker': 'villain character',
+  'harley quinn': 'colorful costume character',
+  'robin': 'young hero sidekick',
+  'catwoman': 'cat-costumed hero',
+  
+  // Disney
+  'mickey mouse': 'cute mouse',
+  'mickey': 'cute mouse',
+  'minnie mouse': 'cute girl mouse',
+  'minnie': 'cute girl mouse',
+  'donald duck': 'funny duck',
+  'goofy': 'friendly dog',
+  'pluto': 'loyal dog',
+  'elsa': 'ice princess',
+  'anna': 'brave princess',
+  'frozen': 'ice kingdom',
+  'moana': 'brave sailor girl',
+  'rapunzel': 'long-haired princess',
+  'ariel': 'mermaid princess',
+  'simba': 'lion cub',
+  'mufasa': 'king lion',
+  'nemo': 'clownfish',
+  'dory': 'blue fish',
+  'buzz lightyear': 'space ranger',
+  'woody': 'cowboy toy',
+  
+  // Other popular
+  'pokemon': 'pocket monsters',
+  'pikachu': 'electric yellow creature',
+  'mario': 'jumping hero',
+  'luigi': 'green cap hero',
+  'sonic': 'fast blue hedgehog',
+  'shrek': 'green ogre',
+  'peppa pig': 'cute pig',
+  'paw patrol': 'hero puppies',
+  'spongebob': 'sea sponge',
+  'dora': 'explorer girl',
+  'barbie': 'beautiful doll',
+  'hello kitty': 'cute cat',
+  'winnie the pooh': 'honey-loving bear',
+  'pooh': 'honey-loving bear',
+  'transformers': 'transforming robots',
+  'harry potter': 'wizard boy',
+  'optimus prime': 'leader robot',
+};
+
+// Check if text contains copyrighted content and return sanitized version
+function sanitizeCopyrightedContent(text: string): { sanitized: string; hasCopyrighted: boolean; found: string[] } {
+  if (!text) return { sanitized: text, hasCopyrighted: false, found: [] };
+  
+  let sanitized = text.toLowerCase();
+  const found: string[] = [];
+  
+  for (const [copyrighted, replacement] of Object.entries(COPYRIGHTED_CHARACTERS)) {
+    const regex = new RegExp(`\\b${copyrighted}\\b`, 'gi');
+    if (regex.test(sanitized)) {
+      found.push(copyrighted);
+      sanitized = sanitized.replace(regex, replacement);
+    }
+  }
+  
+  // Restore original case for first letter
+  if (found.length > 0) {
+    sanitized = sanitized.charAt(0).toUpperCase() + sanitized.slice(1);
+  } else {
+    sanitized = text; // Return original if no changes
+  }
+  
+  return { sanitized, hasCopyrighted: found.length > 0, found };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -374,8 +470,16 @@ Scene: ${prompt.replace(/CRITICAL:[^.]+\./g, '').substring(0, 500)}`;
 
     // Helper to sanitize character names (remove potentially problematic terms)
     function sanitizeForImageGen(text: string): string {
+      // First check for copyrighted content
+      const copyrightCheck = sanitizeCopyrightedContent(text);
+      let result = copyrightCheck.sanitized;
+      
+      if (copyrightCheck.hasCopyrighted) {
+        console.log(`Copyright sanitized in image prompt: ${copyrightCheck.found.join(', ')}`);
+      }
+      
       // Remove any potentially problematic patterns while keeping the essence
-      return text
+      return result
         .replace(/\b(şiddet|violence|weapon|blood|scary|horror|dark|evil)\b/gi, '')
         .replace(/\s+/g, ' ')
         .trim();
