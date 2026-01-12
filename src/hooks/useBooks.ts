@@ -77,6 +77,7 @@ export const useBooks = () => {
                 description: page.description,
                 sound: page.sound,
                 backgroundImage: page.background_image || undefined,
+                textPosition: (page as any).text_position || "top",
               })),
             } as Book;
           })
@@ -146,6 +147,7 @@ export const useBooks = () => {
           description: page.description,
           sound: page.sound,
           background_image: page.backgroundImage,
+          text_position: page.textPosition || "top",
         }));
 
         const { error: pagesError } = await supabase
@@ -218,6 +220,7 @@ export const useBooks = () => {
           description: page.description,
           sound: page.sound,
           background_image: page.backgroundImage,
+          text_position: page.textPosition || "top",
         }));
 
         const { error: pagesError } = await supabase
