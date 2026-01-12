@@ -9,9 +9,9 @@ const corsHeaders = {
 };
 
 const pageSchema = z.object({
-  character: z.string().max(100),
+  character: z.string().max(200),
   emoji: z.string().max(10),
-  description: z.string().max(500),
+  description: z.string().max(2000), // Increased limit for longer descriptions
 });
 
 const requestSchema = z.object({
