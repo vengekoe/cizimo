@@ -292,7 +292,9 @@ const Admin = () => {
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -320,12 +322,14 @@ const Admin = () => {
                             </TableCell>
                             <TableCell>
                               <Select
-                                value={u.tier}
+                                value={u.tier || "minik_masal"}
                                 onValueChange={(v) => handleUpdateTier(u.user_id, v as SubscriptionTier)}
                                 disabled={updatingUser === u.user_id}
                               >
                                 <SelectTrigger className="w-[140px] h-8">
-                                  <SelectValue />
+                                  <SelectValue placeholder="Paket seçin">
+                                    {u.tier ? `${TIER_EMOJIS[u.tier]} ${TIER_NAMES[u.tier]?.split(" ").slice(1).join(" ")}` : "Paket seçin"}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="minik_masal">🐣 Minik Masal</SelectItem>
@@ -338,7 +342,7 @@ const Admin = () => {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <span className="text-sm">
-                                  {u.monthly_credits === -1 ? "∞" : `${u.used_credits}/${u.monthly_credits}`}
+                                  {u.monthly_credits === -1 ? "∞" : `${u.used_credits || 0}/${u.monthly_credits || 0}`}
                                 </span>
                                 <Button
                                   variant="ghost"
@@ -356,21 +360,21 @@ const Admin = () => {
                               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Baby className="w-3 h-3" />
-                                  {u.children_count}
+                                  {u.children_count || 0}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Book className="w-3 h-3" />
-                                  {u.books_count}
+                                  {u.books_count || 0}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
-                                  {formatDuration(u.total_reading_seconds)}
+                                  {formatDuration(u.total_reading_seconds || 0)}
                                 </span>
                               </div>
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-muted-foreground">
-                                {format(new Date(u.user_created_at), "d MMM yyyy", { locale: tr })}
+                                {u.user_created_at ? format(new Date(u.user_created_at), "d MMM yyyy", { locale: tr }) : "-"}
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
@@ -399,6 +403,95 @@ const Admin = () => {
                       </TableBody>
                     </Table>
                   </div>
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {filteredUsers.map((u) => (
+                      <Card key={u.user_id} className="overflow-hidden">
+                        <CardContent className="p-4 space-y-3">
+                          {/* User Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              {u.is_admin && (
+                                <Crown className="w-4 h-4 text-yellow-500" />
+                              )}
+                              <div>
+                                <p className="font-medium">{u.display_name || "İsimsiz"}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[180px]">{u.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {u.user_created_at ? format(new Date(u.user_created_at), "d MMM yy", { locale: tr }) : "-"}
+                            </Badge>
+                          </div>
+
+                          {/* Stats Row */}
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Baby className="w-3 h-3" />
+                              {u.children_count || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Book className="w-3 h-3" />
+                              {u.books_count || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDuration(u.total_reading_seconds || 0)}
+                            </span>
+                            <span className="flex items-center gap-1 ml-auto">
+                              <Zap className="w-3 h-3" />
+                              {u.monthly_credits === -1 ? "∞" : `${u.used_credits || 0}/${u.monthly_credits || 0}`}
+                            </span>
+                          </div>
+
+                          {/* Actions Row */}
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={u.tier || "minik_masal"}
+                              onValueChange={(v) => handleUpdateTier(u.user_id, v as SubscriptionTier)}
+                              disabled={updatingUser === u.user_id}
+                            >
+                              <SelectTrigger className="flex-1 h-9">
+                                <SelectValue placeholder="Paket seçin">
+                                  {u.tier ? `${TIER_EMOJIS[u.tier]} ${TIER_NAMES[u.tier]?.split(" ").slice(1).join(" ")}` : "Paket seçin"}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="minik_masal">🐣 Minik Masal</SelectItem>
+                                <SelectItem value="masal_kesfifcisi">🐿️ Masal Keşifçisi</SelectItem>
+                                <SelectItem value="masal_kahramani">🦄 Masal Kahramanı</SelectItem>
+                                <SelectItem value="sonsuz_masal">🐉 Sonsuz Masal</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => handleResetCredits(u.user_id)}
+                              disabled={updatingUser === u.user_id}
+                              title="Kredileri sıfırla"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              variant={u.is_admin ? "destructive" : "outline"}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => handleToggleAdmin(u.user_id, u.is_admin)}
+                              disabled={updatingUser === u.user_id || u.user_id === user?.id}
+                              title={u.is_admin ? "Admin yetkisini kaldır" : "Admin yap"}
+                            >
+                              {u.is_admin ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
