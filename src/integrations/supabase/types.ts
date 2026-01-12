@@ -340,6 +340,7 @@ export type Database = {
           gender: string | null
           id: string
           preferred_ai_model: string | null
+          preferred_image_model: string | null
           preferred_language: string | null
           preferred_page_count: number | null
           updated_at: string
@@ -359,6 +360,7 @@ export type Database = {
           gender?: string | null
           id?: string
           preferred_ai_model?: string | null
+          preferred_image_model?: string | null
           preferred_language?: string | null
           preferred_page_count?: number | null
           updated_at?: string
@@ -378,6 +380,7 @@ export type Database = {
           gender?: string | null
           id?: string
           preferred_ai_model?: string | null
+          preferred_image_model?: string | null
           preferred_language?: string | null
           preferred_page_count?: number | null
           updated_at?: string

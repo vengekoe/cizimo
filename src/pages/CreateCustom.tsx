@@ -28,6 +28,9 @@ const CreateCustom = () => {
   const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
     (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
   );
+  const [imageModel, setImageModel] = useState<"gemini-2.5-flash-image" | "gemini-3-pro-image">(
+    ((profile as any)?.preferred_image_model as any) || "gemini-2.5-flash-image"
+  );
 
   const handleGenerate = async () => {
     if (!customTheme.trim()) {
@@ -55,7 +58,7 @@ const CreateCustom = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData, category);
+    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData, category, imageModel);
     if (book) {
       setCustomTheme("");
       toast.success("Yeni kitap hazır!");
@@ -93,6 +96,8 @@ const CreateCustom = () => {
           onCategoryChange={setCategory}
           aiModel={aiModel}
           onAiModelChange={setAiModel}
+          imageModel={imageModel}
+          onImageModelChange={setImageModel}
           className="mb-6"
         />
 

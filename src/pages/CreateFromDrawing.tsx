@@ -28,6 +28,9 @@ const CreateFromDrawing = () => {
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
   const [category, setCategory] = useState<string>("other");
+  const [imageModel, setImageModel] = useState<"gemini-2.5-flash-image" | "gemini-3-pro-image">(
+    ((profile as any)?.preferred_image_model as any) || "gemini-2.5-flash-image"
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -112,6 +115,8 @@ const CreateFromDrawing = () => {
           onPageCountChange={setPageCount}
           category={category}
           onCategoryChange={setCategory}
+          imageModel={imageModel}
+          onImageModelChange={setImageModel}
           showAiModel={false}
           className="mb-6"
         />

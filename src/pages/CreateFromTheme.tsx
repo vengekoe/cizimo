@@ -40,6 +40,9 @@ const CreateFromTheme = () => {
   const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
     (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
   );
+  const [imageModel, setImageModel] = useState<"gemini-2.5-flash-image" | "gemini-3-pro-image">(
+    ((profile as any)?.preferred_image_model as any) || "gemini-2.5-flash-image"
+  );
 
   const handleSelectTheme = async (theme: string, themeCategory?: string) => {
     const selectedChild = getSelectedChild();
@@ -63,7 +66,7 @@ const CreateFromTheme = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(theme, language, pageCount, aiModel, profileData, themeCategory || category);
+    const book = await generateBook(theme, language, pageCount, aiModel, profileData, themeCategory || category, imageModel);
     if (book) {
       toast.success("Yeni kitap hazır!");
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
@@ -100,6 +103,8 @@ const CreateFromTheme = () => {
           onCategoryChange={setCategory}
           aiModel={aiModel}
           onAiModelChange={setAiModel}
+          imageModel={imageModel}
+          onImageModelChange={setImageModel}
           showCategory={false}
           className="mb-6"
         />
