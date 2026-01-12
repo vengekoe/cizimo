@@ -44,7 +44,7 @@ const SwipeInteraction = ({ emoji, sound, label, position = "bottom" }: SwipeInt
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="text-3xl md:text-4xl px-6 py-4 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl transition-all duration-200 cursor-pointer select-none"
+        className="text-lg md:text-xl px-3 py-2 md:px-4 md:py-3 bg-card/90 backdrop-blur-sm rounded-xl shadow-xl transition-all duration-200 cursor-pointer select-none"
         style={{
           transform: `translateX(${currentX}px)`,
         }}
@@ -53,7 +53,7 @@ const SwipeInteraction = ({ emoji, sound, label, position = "bottom" }: SwipeInt
       </div>
       
       {swipeCount > 0 && (
-        <p className="text-lg text-accent font-bold animate-fade-in">
+        <p className="text-sm text-accent font-bold animate-fade-in">
           {sound} {swipeCount > 2 && "💫"}
         </p>
       )}

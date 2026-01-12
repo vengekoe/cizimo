@@ -31,9 +31,9 @@ const ClickInteraction = ({ emoji, sound, label, position = "bottom" }: ClickInt
     <div className="flex flex-col items-center gap-2">
       <Button
         onClick={handleClick}
-        size="lg"
+        size="sm"
         variant="secondary"
-        className={`text-3xl md:text-4xl px-6 py-4 bg-card/90 backdrop-blur-sm hover:scale-110 transition-all duration-300 shadow-xl ${
+        className={`text-lg md:text-xl px-3 py-2 md:px-4 md:py-3 bg-card/90 backdrop-blur-sm hover:scale-110 transition-all duration-300 shadow-xl ${
           isAnimating ? "wiggle scale-110" : ""
         }`}
       >
@@ -41,7 +41,7 @@ const ClickInteraction = ({ emoji, sound, label, position = "bottom" }: ClickInt
       </Button>
       
       {clickCount > 0 && (
-        <p className="text-lg text-accent font-bold animate-fade-in">
+        <p className="text-sm text-accent font-bold animate-fade-in">
           {sound} {clickCount > 2 && "🎉"}
         </p>
       )}

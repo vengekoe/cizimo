@@ -51,7 +51,7 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
     >
       <div
         onMouseDown={handleMouseDown}
-        className={`text-3xl md:text-4xl px-6 py-4 bg-card/90 backdrop-blur-sm rounded-2xl shadow-xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
+        className={`text-lg md:text-xl px-3 py-2 md:px-4 md:py-3 bg-card/90 backdrop-blur-sm rounded-xl shadow-xl cursor-grab active:cursor-grabbing transition-all duration-300 ${
           isDragging ? "scale-110 shadow-2xl" : "hover:scale-105"
         }`}
         style={{
@@ -63,7 +63,7 @@ const DragInteraction = ({ emoji, sound, label, position = "bottom" }: DragInter
       </div>
       
       {dragCount > 0 && (
-        <p className="text-lg text-accent font-bold animate-fade-in pointer-events-none">
+        <p className="text-sm text-accent font-bold animate-fade-in pointer-events-none">
           {sound} {dragCount > 2 && "✨"}
         </p>
       )}
