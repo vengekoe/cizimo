@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getAccessToken } from "../_shared/google-auth.ts";
 
@@ -7,6 +8,26 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Helper to verify authentication
+async function verifyAuth(req: Request): Promise<{ user: any; error?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return { user: null, error: 'Authentication required' };
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    return { user: null, error: 'Invalid authentication' };
+  }
+  return { user };
+}
 
 const profileSchema = z.object({
   age: z.number().nullable().optional(),
@@ -150,10 +171,19 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const { user, error: authError } = await verifyAuth(req);
+    if (authError) {
+      return new Response(
+        JSON.stringify({ error: authError }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { theme, language, pageCount, model, profile } = requestSchema.parse(body);
     
-    console.log(`Generating story: theme=${theme}, lang=${language}, pages=${pageCount}, model=${model}, hasProfile=${!!profile}`);
+    console.log(`Generating story: pages=${pageCount}, model=${model}`);
 
     // Build personalization context from profile with copyright sanitization
     let personalizationContext = "";
@@ -221,16 +251,11 @@ serve(async (req) => {
       }
     }
     
-    if (copyrightWarnings.length > 0) {
-      console.log(`Copyright content sanitized: ${copyrightWarnings.join('; ')}`);
-    }
+    // Sanitize copyrighted content (no logging of user content)
     
     // Sanitize theme as well
     const themeCheck = sanitizeCopyrightedContent(theme);
     const safeTheme = themeCheck.sanitized;
-    if (themeCheck.hasCopyrighted) {
-      console.log(`Theme sanitized: ${themeCheck.found.join(', ')} → ${safeTheme}`);
-    }
 
     const prompt = `"${safeTheme}" temalı ${pageCount} sayfalık TUTARLI ve AKICI bir çocuk hikayesi oluştur:
 
@@ -397,7 +422,7 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
     }
 
     const data = await response.json();
-    console.log(`${model} response received`);
+    console.log('Story response received');
     
     let content: string;
 
@@ -405,7 +430,6 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
       // Extract from GPT response
       const choice = data?.choices?.[0];
       if (!choice) {
-        console.error("No choices in GPT response");
         throw new Error("GPT'den yanıt alınamadı");
       }
       content = choice.message?.content;
@@ -415,20 +439,15 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
     }
 
     if (!content) {
-      console.error("No content in response");
-      console.error("Full response:", JSON.stringify(data));
       throw new Error("AI'dan metin alınamadı. Lütfen tekrar deneyin.");
     }
 
-    console.log("Story content received, length:", content.length);
+    console.log("Story content length:", content.length);
 
     let story;
     try {
       story = JSON.parse(content);
     } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("Raw content:", content.substring(0, 500));
-      
       // Try to extract JSON from text
       const start = content.indexOf("{");
       const end = content.lastIndexOf("}");
@@ -436,7 +455,6 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
         try {
           story = JSON.parse(content.slice(start, end + 1));
         } catch (e2) {
-          console.error("Brace-slice parse failed:", e2);
           throw new Error("Hikaye formatı geçersiz");
         }
       } else {
@@ -446,29 +464,24 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
 
     // Validate story structure
     const validated = storySchema.parse(story);
-    console.log("Story validated successfully");
+    console.log("Story generated successfully");
 
     return new Response(
       JSON.stringify({ story: validated }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in generate-story function:", error);
+    console.error("Story generation error:", error instanceof Error ? error.message : 'Unknown');
 
     if (error instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({ 
-          error: "Validation error",
-          details: error.errors 
-        }),
+        JSON.stringify({ error: "Validation error" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu" 
-      }),
+      JSON.stringify({ error: "Story generation failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -33,7 +33,7 @@ async function updateTask(taskId: string, updates: {
 
 // Background processing function
 async function processTask(taskId: string, inputData: any) {
-  console.log(`Processing task ${taskId}...`);
+  console.log(`Processing task ${taskId}`);
   
   try {
     // Step 1: Analyzing
@@ -66,7 +66,7 @@ async function processTask(taskId: string, inputData: any) {
     }
 
     const storyData = await storyResponse.json();
-    console.log("Story generated:", storyData.title);
+    console.log("Story generated");
 
     // Step 2: Generating images
     await updateTask(taskId, {
@@ -101,7 +101,7 @@ async function processTask(taskId: string, inputData: any) {
     }
 
     const imageData = await imageResponse.json();
-    console.log("Images generated:", imageData.images?.length);
+    console.log("Images generated:", imageData.images?.length || 0);
 
     // Update progress
     await updateTask(taskId, {

@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getAccessToken } from "../_shared/google-auth.ts";
 
@@ -7,6 +8,32 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Helper to verify authentication
+async function verifyAuth(req: Request): Promise<{ user: any; error?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return { user: null, error: 'Authentication required' };
+  }
+
+  // Allow service role key for internal calls
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    return { user: { id: 'service-role' } };
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    return { user: null, error: 'Invalid authentication' };
+  }
+  return { user };
+}
 
 const pageSchema = z.object({
   character: z.string().max(200),
@@ -130,10 +157,18 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const { user, error: authError } = await verifyAuth(req);
+    if (authError) {
+      return new Response(
+        JSON.stringify({ error: authError }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
-    console.log("Request received, parsing...");
     const { pages, theme, imageModel } = requestSchema.parse(body);
-    console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}, model: ${imageModel}`);
+    console.log(`Generating ${pages.length} images using ${imageModel}`);
     
     const isOpenAIModel = imageModel === "dall-e-3" || imageModel === "gpt-image-1";
     const isGeminiModel = imageModel === "gemini-2.5-flash-image" || imageModel === "gemini-3-pro-image";
@@ -474,10 +509,6 @@ Scene: ${prompt.replace(/CRITICAL:[^.]+\./g, '').substring(0, 500)}`;
       const copyrightCheck = sanitizeCopyrightedContent(text);
       let result = copyrightCheck.sanitized;
       
-      if (copyrightCheck.hasCopyrighted) {
-        console.log(`Copyright sanitized in image prompt: ${copyrightCheck.found.join(', ')}`);
-      }
-      
       // Remove any potentially problematic patterns while keeping the essence
       return result
         .replace(/\b(şiddet|violence|weapon|blood|scary|horror|dark|evil)\b/gi, '')
@@ -505,7 +536,7 @@ Scene: ${safeDesc}
 Theme: ${safeTheme}
 Landscape orientation, filling the entire frame edge-to-edge with no borders.`;
       
-      console.log(`\n=== Generating image ${index + 1}/${pages.length}: ${safeCharacter} ===`);
+      console.log(`Generating image ${index + 1}/${pages.length}`);
       const result = await generateImageWithRetry(prompt, index);
       results.push(result);
       
@@ -519,14 +550,10 @@ Landscape orientation, filling the entire frame edge-to-edge with no borders.`;
     const successCount = results.filter(r => r.success).length;
     const failedPages = results.filter(r => !r.success);
     
-    console.log(`\n=== Generation Summary ===`);
-    console.log(`Total: ${pages.length}, Success: ${successCount}, Failed: ${failedPages.length}`);
+    console.log(`Image generation: ${successCount}/${pages.length} successful`);
     
     if (failedPages.length > 0) {
-      console.log(`Failed pages:`);
-      failedPages.forEach(f => {
-        console.log(`  - Page ${f.pageIndex + 1}: ${f.error} (${f.attempts} attempts)`);
-      });
+      console.log(`Failed: ${failedPages.length} pages`);
     }
 
     return new Response(JSON.stringify({ 
@@ -546,14 +573,10 @@ Landscape orientation, filling the entire frame edge-to-edge with no borders.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("Image generation error:", e);
+    console.error("Image generation error:", e instanceof Error ? e.message : 'Unknown');
     const isValidationError = e instanceof z.ZodError;
     return new Response(
-      JSON.stringify({ 
-        error: isValidationError 
-          ? `Validation error: ${e.errors.map(err => err.message).join(', ')}`
-          : e instanceof Error ? e.message : "Bilinmeyen hata" 
-      }),
+      JSON.stringify({ error: isValidationError ? "Validation error" : "Image generation failed" }),
       { status: isValidationError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

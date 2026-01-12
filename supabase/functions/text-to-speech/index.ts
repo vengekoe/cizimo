@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
@@ -16,17 +17,40 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const body = await req.json()
     const { text } = requestSchema.parse(body)
 
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')
     if (!ELEVENLABS_API_KEY) {
-      throw new Error('ElevenLabs API key bulunamadı')
+      throw new Error('ElevenLabs API key not configured')
     }
 
-    console.log('Text-to-speech isteği:', text.substring(0, 50))
+    console.log('Text-to-speech request, length:', text.length)
 
-    // ElevenLabs API çağrısı - Türkçe seslendirme için Aria kullanıyoruz
+    // ElevenLabs API call - Using Aria for Turkish voice
     const response = await fetch(
       'https://api.elevenlabs.io/v1/text-to-speech/9BWtsMINqrJLrRacOk9x',
       {
@@ -50,18 +74,17 @@ serve(async (req) => {
     )
 
     if (!response.ok) {
-      const error = await response.text()
-      console.error('ElevenLabs hatası:', error)
-      throw new Error(`Ses oluşturulamadı: ${error}`)
+      console.error('ElevenLabs error:', response.status)
+      throw new Error(`Voice generation failed: ${response.status}`)
     }
 
-    // Ses verisini base64'e çevir
+    // Convert audio to base64
     const arrayBuffer = await response.arrayBuffer()
     const base64Audio = btoa(
       String.fromCharCode(...new Uint8Array(arrayBuffer))
     )
 
-    console.log('Ses başarıyla oluşturuldu, boyut:', arrayBuffer.byteLength)
+    console.log('Audio generated, size:', arrayBuffer.byteLength)
 
     return new Response(
       JSON.stringify({ audioContent: base64Audio }),
@@ -70,13 +93,13 @@ serve(async (req) => {
       },
     )
   } catch (error) {
-    console.error('Text-to-speech hatası:', error)
+    console.error('Text-to-speech error:', error instanceof Error ? error.message : 'Unknown')
     const isValidationError = error instanceof z.ZodError;
     return new Response(
       JSON.stringify({ 
         error: isValidationError 
           ? `Validation error: ${error.errors.map(err => err.message).join(', ')}`
-          : error instanceof Error ? error.message : 'Bilinmeyen hata' 
+          : 'Voice generation failed'
       }),
       {
         status: isValidationError ? 400 : 500,
