@@ -1,23 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { Volume2, VolumeX, Loader2, Square } from "lucide-react";
+import { toast } from "sonner";
 
 interface AudioPlayerProps {
   text: string;
-  label?: string;
+  className?: string;
+  variant?: "default" | "icon";
+  autoPlay?: boolean;
 }
 
-const AudioPlayer = ({ text, label = "Metni Dinle" }: AudioPlayerProps) => {
+const AudioPlayer = ({ text, className = "", variant = "default", autoPlay = false }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stop audio when text changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [text]);
 
   const playAudio = async () => {
-    if (isPlaying && audio) {
-      audio.pause();
+    // Toggle pause if already playing
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
       setIsPlaying(false);
       return;
     }
@@ -25,64 +49,104 @@ const AudioPlayer = ({ text, label = "Metni Dinle" }: AudioPlayerProps) => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text }
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Ses oluşturulamadı");
+      }
 
-      // Base64'ten audio oluştur
-      const audioBlob = await fetch(`data:audio/mpeg;base64,${data.audioContent}`).then(r => r.blob());
-      const audioUrl = URL.createObjectURL(audioBlob);
+      const data = await response.json();
+
+      if (!data.audioContent) {
+        throw new Error("Ses içeriği alınamadı");
+      }
+
+      // Cleanup previous audio
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+
+      // Create audio from base64
+      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
       
       const audioElement = new Audio(audioUrl);
-      setAudio(audioElement);
+      audioRef.current = audioElement;
       
       audioElement.onended = () => {
         setIsPlaying(false);
-        URL.revokeObjectURL(audioUrl);
       };
 
       audioElement.onerror = () => {
         setIsPlaying(false);
-        URL.revokeObjectURL(audioUrl);
-        toast({
-          title: "Ses çalınamadı",
-          description: "Ses dosyası çalınırken bir hata oluştu",
-          variant: "destructive",
-        });
+        toast.error("Ses çalınamadı");
       };
 
       await audioElement.play();
       setIsPlaying(true);
     } catch (error) {
-      console.error('Ses çalma hatası:', error);
-      toast({
-        title: "Ses oluşturulamadı",
-        description: "Lütfen tekrar deneyin",
-        variant: "destructive",
-      });
+      console.error("Ses çalma hatası:", error);
+      toast.error(error instanceof Error ? error.message : "Ses oluşturulamadı");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+    }
+  };
+
+  if (variant === "icon") {
+    return (
+      <Button
+        onClick={isPlaying ? stopAudio : playAudio}
+        disabled={isLoading}
+        size="icon"
+        variant="secondary"
+        className={`bg-black/40 backdrop-blur-sm hover:bg-black/60 text-white border-0 ${className}`}
+      >
+        {isLoading ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : isPlaying ? (
+          <Square className="w-5 h-5 fill-current" />
+        ) : (
+          <Volume2 className="w-5 h-5" />
+        )}
+      </Button>
+    );
+  }
+
   return (
     <Button
-      onClick={playAudio}
+      onClick={isPlaying ? stopAudio : playAudio}
       disabled={isLoading}
       size="lg"
       variant="secondary"
-      className="text-xl md:text-2xl px-6 py-6 bg-card/90 backdrop-blur-sm hover:scale-110 transition-all duration-300 shadow-xl"
+      className={`bg-card/90 backdrop-blur-sm hover:scale-105 transition-all duration-300 shadow-xl ${className}`}
     >
       {isLoading ? (
-        <Loader2 className="w-6 h-6 animate-spin" />
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
       ) : isPlaying ? (
-        <VolumeX className="w-6 h-6" />
+        <Square className="w-5 h-5 fill-current mr-2" />
       ) : (
-        <Volume2 className="w-6 h-6" />
+        <Volume2 className="w-5 h-5 mr-2" />
       )}
-      <span className="ml-2">{label}</span>
+      <span>{isPlaying ? "Durdur" : "Dinle"}</span>
     </Button>
   );
 };

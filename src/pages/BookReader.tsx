@@ -9,6 +9,7 @@ import ShakeInteraction from "@/components/interactions/ShakeInteraction";
 import PageNavigation from "@/components/PageNavigation";
 import BookFeedback from "@/components/BookFeedback";
 import { BookInteractions } from "@/components/BookInteractions";
+import AudioPlayer from "@/components/AudioPlayer";
 import { useBooks } from "@/hooks/useBooks";
 import { useReadingStats } from "@/hooks/useReadingStats";
 import { useChildren } from "@/hooks/useChildren";
@@ -301,9 +302,16 @@ const BookReader = () => {
           textPosition={page.textPosition}
         >
           <div className="space-y-2 md:space-y-3 lg:space-y-4 animate-fade-in max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl">
-            <h2 className="font-bubble text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 bg-black/30 backdrop-blur-sm rounded-xl md:rounded-2xl">
-              {page.title}
-            </h2>
+            <div className="flex items-start gap-2">
+              <h2 className="flex-1 font-bubble text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 bg-black/30 backdrop-blur-sm rounded-xl md:rounded-2xl">
+                {page.title}
+              </h2>
+              <AudioPlayer 
+                text={`${page.title}. ${page.description}`} 
+                variant="icon"
+                className="shrink-0"
+              />
+            </div>
             <p className="font-nunito text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 bg-black/25 backdrop-blur-sm rounded-lg md:rounded-xl leading-relaxed">
               {page.description}
             </p>
