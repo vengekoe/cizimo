@@ -12,7 +12,7 @@ interface BookPageProps {
 
 const BookPage = ({ children, backgroundImage, pageNumber, animationType, gradientFallback }: BookPageProps) => {
   return (
-    <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+    <div className="relative w-screen h-screen flex items-center justify-center overflow-hidden m-0 p-0">
       {backgroundImage ? (
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
