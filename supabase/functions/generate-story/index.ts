@@ -16,6 +16,12 @@ async function verifyAuth(req: Request): Promise<{ user: any; error?: string }> 
     return { user: null, error: 'Authentication required' };
   }
 
+  // Allow service role key for internal calls (e.g., from process-background-task)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    return { user: { id: 'service-role' } };
+  }
+
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
