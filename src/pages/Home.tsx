@@ -28,13 +28,14 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 const Home = () => {
   const { books, loading, progress, deleteBook, toggleFavorite } = useBooks();
   const { user, loading: authLoading } = useAuth();
-  const { children, selectedChildId, setSelectedChildId } = useChildren();
+  const { children } = useChildren();
   const { getSharedBooksForChild } = useBookShares();
   const { categories, getCategoryById, getCategoryColor } = useBookCategories();
   const navigate = useNavigate();
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [childFilterId, setChildFilterId] = useState<string | null>(null);
   const [shareDialogBook, setShareDialogBook] = useState<{ id: string; title: string; childId?: string } | null>(null);
 
   useEffect(() => {
@@ -43,14 +44,14 @@ const Home = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Get shared book IDs for selected child
-  const sharedBookIds = selectedChildId ? getSharedBooksForChild(selectedChildId) : [];
+  // Get shared book IDs for selected child filter
+  const sharedBookIds = childFilterId ? getSharedBooksForChild(childFilterId) : [];
 
   // Filter books by selected child (owned or shared) and category
   const filteredBooks = books.filter(book => {
     // Child filter
-    const childMatch = selectedChildId 
-      ? book.childId === selectedChildId || sharedBookIds.includes(book.id)
+    const childMatch = childFilterId 
+      ? book.childId === childFilterId || sharedBookIds.includes(book.id)
       : true;
     
     // Category filter
@@ -75,8 +76,8 @@ const Home = () => {
 
   // Get category counts for badges
   const getCategoryCount = (categoryId: string) => {
-    const childFilteredBooks = selectedChildId 
-      ? books.filter(book => book.childId === selectedChildId || sharedBookIds.includes(book.id))
+    const childFilteredBooks = childFilterId 
+      ? books.filter(book => book.childId === childFilterId || sharedBookIds.includes(book.id))
       : books;
     return childFilteredBooks.filter(book => (book.category || "other") === categoryId).length;
   };
@@ -88,7 +89,7 @@ const Home = () => {
     }
   };
 
-  const selectedChild = children.find(c => c.id === selectedChildId);
+  const selectedChild = children.find(c => c.id === childFilterId);
 
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-primary/5">
@@ -110,7 +111,7 @@ const Home = () => {
           <div className="bg-card rounded-2xl p-3 border border-border mb-4">
             <div className="flex items-center gap-2">
               <Baby className="w-4 h-4 text-primary" />
-              <Select value={selectedChildId || "all"} onValueChange={(v) => setSelectedChildId(v === "all" ? null : v)}>
+              <Select value={childFilterId || "all"} onValueChange={(v) => setChildFilterId(v === "all" ? null : v)}>
                 <SelectTrigger className="flex-1 h-9">
                   <SelectValue placeholder="Tüm kitaplar" />
                 </SelectTrigger>
@@ -236,7 +237,7 @@ const Home = () => {
                     </div>
                   )}
                   {/* Shared badge */}
-                  {selectedChildId && book.childId !== selectedChildId && sharedBookIds.includes(book.id) && (
+                  {childFilterId && book.childId !== childFilterId && sharedBookIds.includes(book.id) && (
                     <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-2 py-1 rounded-full flex items-center gap-1 text-[10px] font-medium shadow-lg">
                       <Share2 className="w-3 h-3" />
                       Paylaşılan
