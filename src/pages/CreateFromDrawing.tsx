@@ -27,6 +27,7 @@ const CreateFromDrawing = () => {
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
+  const [category, setCategory] = useState<string>("other");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,6 +110,8 @@ const CreateFromDrawing = () => {
           onLanguageChange={setLanguage}
           pageCount={pageCount}
           onPageCountChange={setPageCount}
+          category={category}
+          onCategoryChange={setCategory}
           showAiModel={false}
           className="mb-6"
         />

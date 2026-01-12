@@ -12,18 +12,18 @@ import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
 
 const themes = [
-  { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
-  { emoji: "🚀", title: "Uzay Yolculuğu", theme: "Uzay, gezegenler ve yıldızlar" },
-  { emoji: "🏰", title: "Şato Masalı", theme: "Prenses, şövalye ve ejderhalar" },
-  { emoji: "🦖", title: "Dinozor Zamanı", theme: "Dinozorlar ve tarih öncesi dönem" },
-  { emoji: "🎪", title: "Sirk Şovu", theme: "Sirk sanatçıları ve performanslar" },
-  { emoji: "🌈", title: "Gökkuşağı Ülkesi", theme: "Renkler ve hayal dünyası" },
-  { emoji: "🐉", title: "Ejderha Dostluğu", theme: "Ejderhalar ve cesaret" },
-  { emoji: "🎨", title: "Sanat Atölyesi", theme: "Yaratıcılık ve sanat" },
-  { emoji: "🌺", title: "Bahçe Maceraları", theme: "Çiçekler, böcekler ve doğa" },
-  { emoji: "🧙‍♂️", title: "Büyücü Okulu", theme: "Büyü, sihir ve fantastik maceralar" },
-  { emoji: "🏴‍☠️", title: "Korsan Hazinesi", theme: "Korsanlar, gemiler ve hazine avı" },
-  { emoji: "🦁", title: "Safari Macerası", theme: "Afrika hayvanları ve vahşi doğa" },
+  { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları", category: "adventure" },
+  { emoji: "🚀", title: "Uzay Yolculuğu", theme: "Uzay, gezegenler ve yıldızlar", category: "space" },
+  { emoji: "🏰", title: "Şato Masalı", theme: "Prenses, şövalye ve ejderhalar", category: "fantasy" },
+  { emoji: "🦖", title: "Dinozor Zamanı", theme: "Dinozorlar ve tarih öncesi dönem", category: "animals" },
+  { emoji: "🎪", title: "Sirk Şovu", theme: "Sirk sanatçıları ve performanslar", category: "other" },
+  { emoji: "🌈", title: "Gökkuşağı Ülkesi", theme: "Renkler ve hayal dünyası", category: "fantasy" },
+  { emoji: "🐉", title: "Ejderha Dostluğu", theme: "Ejderhalar ve cesaret", category: "fantasy" },
+  { emoji: "🎨", title: "Sanat Atölyesi", theme: "Yaratıcılık ve sanat", category: "other" },
+  { emoji: "🌺", title: "Bahçe Maceraları", theme: "Çiçekler, böcekler ve doğa", category: "nature" },
+  { emoji: "🧙‍♂️", title: "Büyücü Okulu", theme: "Büyü, sihir ve fantastik maceralar", category: "fantasy" },
+  { emoji: "🏴‍☠️", title: "Korsan Hazinesi", theme: "Korsanlar, gemiler ve hazine avı", category: "adventure" },
+  { emoji: "🦁", title: "Safari Macerası", theme: "Afrika hayvanları ve vahşi doğa", category: "animals" },
 ];
 
 const CreateFromTheme = () => {
@@ -36,11 +36,12 @@ const CreateFromTheme = () => {
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
+  const [category, setCategory] = useState<string>("adventure");
   const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
     (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
   );
 
-  const handleSelectTheme = async (theme: string) => {
+  const handleSelectTheme = async (theme: string, themeCategory?: string) => {
     const selectedChild = getSelectedChild();
     
     if (!selectedChild) {
@@ -62,7 +63,7 @@ const CreateFromTheme = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(theme, language, pageCount, aiModel, profileData);
+    const book = await generateBook(theme, language, pageCount, aiModel, profileData, themeCategory || category);
     if (book) {
       toast.success("Yeni kitap hazır!");
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
@@ -95,8 +96,11 @@ const CreateFromTheme = () => {
           onLanguageChange={setLanguage}
           pageCount={pageCount}
           onPageCountChange={setPageCount}
+          category={category}
+          onCategoryChange={setCategory}
           aiModel={aiModel}
           onAiModelChange={setAiModel}
+          showCategory={false}
           className="mb-6"
         />
 
@@ -104,7 +108,7 @@ const CreateFromTheme = () => {
           {themes.map((item) => (
             <Button
               key={item.theme}
-              onClick={() => handleSelectTheme(item.theme)}
+              onClick={() => handleSelectTheme(item.theme, item.category)}
               disabled={loading || books.length >= 10 || children.length === 0}
               variant="outline"
               className="h-auto py-4 px-4 flex flex-col items-center gap-2 hover:bg-primary/10 transition-all rounded-2xl"

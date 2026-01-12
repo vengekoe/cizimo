@@ -24,6 +24,7 @@ const CreateCustom = () => {
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
+  const [category, setCategory] = useState<string>("other");
   const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
     (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
   );
@@ -54,7 +55,7 @@ const CreateCustom = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData);
+    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData, category);
     if (book) {
       setCustomTheme("");
       toast.success("Yeni kitap hazır!");
@@ -88,6 +89,8 @@ const CreateCustom = () => {
           onLanguageChange={setLanguage}
           pageCount={pageCount}
           onPageCountChange={setPageCount}
+          category={category}
+          onCategoryChange={setCategory}
           aiModel={aiModel}
           onAiModelChange={setAiModel}
           className="mb-6"

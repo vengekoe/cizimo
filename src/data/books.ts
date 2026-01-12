@@ -21,6 +21,7 @@ export interface Book {
   lastReadAt?: string; // Son okunma tarihi
   childId?: string; // Hangi çocuk için oluşturuldu
   childName?: string; // Çocuğun adı (display için)
+  category?: string; // Kitap kategorisi
   pages: BookPage[];
 }
 

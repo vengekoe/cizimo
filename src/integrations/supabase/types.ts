@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_categories: {
+        Row: {
+          color: string
+          emoji: string
+          id: string
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          color: string
+          emoji: string
+          id: string
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          color?: string
+          emoji?: string
+          id?: string
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       book_comments: {
         Row: {
           book_id: string
@@ -189,6 +213,7 @@ export type Database = {
       }
       books: {
         Row: {
+          category: string | null
           child_id: string | null
           cover_emoji: string
           cover_image: string | null
@@ -203,6 +228,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           child_id?: string | null
           cover_emoji: string
           cover_image?: string | null
@@ -217,6 +243,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           child_id?: string | null
           cover_emoji?: string
           cover_image?: string | null
