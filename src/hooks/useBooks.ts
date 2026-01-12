@@ -4,10 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 
+export interface FailedPage {
+  pageIndex: number;
+  pageNumber: number;
+  error: string;
+  attempts: number;
+}
+
 export interface GenerationProgress {
-  stage: 'story' | 'cover' | 'images' | 'saving' | 'complete' | null;
+  stage: 'story' | 'cover' | 'images' | 'saving' | 'complete' | 'retrying' | null;
   percentage: number;
   message: string;
+  failedPages?: FailedPage[];
 }
 
 export const useBooks = () => {
@@ -298,6 +306,49 @@ export const useBooks = () => {
       return null;
     }
   };
+
+  // Helper function to retry failed image generations
+  const retryFailedImages = async (
+    allPages: any[],
+    failedPages: FailedPage[],
+    theme: string
+  ): Promise<{ pageIndex: number; image: string | null }[]> => {
+    const results: { pageIndex: number; image: string | null }[] = [];
+    
+    for (const failed of failedPages) {
+      const page = allPages[failed.pageIndex];
+      if (!page) continue;
+      
+      console.log(`Retrying page ${failed.pageNumber}...`);
+      
+      // Wait before retry with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 3000 * (failed.attempts || 1)));
+      
+      try {
+        const { data } = await supabase.functions.invoke("generate-book-images", {
+          body: {
+            pages: [page],
+            theme
+          },
+        });
+        
+        const image = data?.images?.[0] || null;
+        results.push({ pageIndex: failed.pageIndex, image });
+        
+        if (image) {
+          console.log(`✓ Page ${failed.pageNumber} retry successful`);
+        } else {
+          console.warn(`✗ Page ${failed.pageNumber} retry failed`);
+        }
+      } catch (error) {
+        console.error(`Retry error for page ${failed.pageNumber}:`, error);
+        results.push({ pageIndex: failed.pageIndex, image: null });
+      }
+    }
+    
+    return results;
+  };
+
   const generateBookFromDrawing = async (imageFile: File, language: "tr" | "en" = "tr", pageCount: number = 10, model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview", userDescription?: string): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Çizim analiz ediliyor...' });
@@ -389,12 +440,61 @@ export const useBooks = () => {
       setProgress({ stage: 'images', percentage: 40, message: 'Sayfa görselleri oluşturuluyor...' });
 
       // Görselleri oluştur
-      const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
+      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: storyData.story.pages,
           theme: `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`,
         },
       });
+
+      if (imageError) {
+        console.error("Image generation error:", imageError);
+        throw new Error("IMAGE_GENERATION_FAILED");
+      }
+
+      // Check for failed pages in summary
+      const summary = imageData?.summary;
+      if (summary?.failed > 0) {
+        console.warn(`${summary.failed} pages failed to generate:`, summary.failedPages);
+        setProgress({ 
+          stage: 'retrying', 
+          percentage: 50, 
+          message: `${summary.failed} görsel oluşturulamadı, yeniden deneniyor...`,
+          failedPages: summary.failedPages 
+        });
+        
+        // Retry failed pages with longer delays
+        const retryResults = await retryFailedImages(
+          storyData.story.pages,
+          summary.failedPages,
+          `${storyData.analysis.theme}, using colors: ${storyData.analysis.colors.join(", ")}, in a child-drawing style`
+        );
+        
+        // Merge retry results with original images
+        const mergedImages = [...(imageData?.images || [])];
+        for (const result of retryResults) {
+          if (result.image) {
+            mergedImages[result.pageIndex] = result.image;
+          }
+        }
+        imageData.images = mergedImages;
+        
+        // Update failed pages list
+        const stillFailed = retryResults.filter(r => !r.image);
+        if (stillFailed.length > 0) {
+          setProgress({ 
+            stage: 'saving', 
+            percentage: 70, 
+            message: `${stillFailed.length} görsel hala oluşturulamadı`,
+            failedPages: stillFailed.map(f => ({
+              pageIndex: f.pageIndex,
+              pageNumber: f.pageIndex + 1,
+              error: 'Yeniden deneme başarısız',
+              attempts: 5
+            }))
+          });
+        }
+      }
 
       setProgress({ stage: 'saving', percentage: 75, message: 'Görseller kaydediliyor...' });
 
@@ -418,9 +518,19 @@ export const useBooks = () => {
       setProgress({ stage: 'complete', percentage: 95, message: 'Kitap hazırlanıyor...' });
 
       // Background fotoğraflarının tamamının oluşturulduğunu kontrol et
-      const missingImages = uploadedUrls.filter(url => !url).length;
-      if (missingImages > 0) {
-        throw new Error("MISSING_BACKGROUNDS");
+      const missingImages = uploadedUrls.filter(url => !url);
+      const missingCount = missingImages.length;
+      if (missingCount > 0) {
+        // Find which pages are missing
+        const missingIndices = uploadedUrls
+          .map((url, idx) => url ? null : idx)
+          .filter(idx => idx !== null) as number[];
+        
+        console.error(`Missing images for pages: ${missingIndices.map(i => i + 1).join(', ')}`);
+        
+        const error = new Error("MISSING_BACKGROUNDS");
+        (error as any).missingPages = missingIndices;
+        throw error;
       }
 
       const pages = storyData.story.pages.map((page: any, index: number) => ({
@@ -467,10 +577,23 @@ export const useBooks = () => {
           });
           return null;
         }
-        if (error.message === "MISSING_BACKGROUNDS") {
-          toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
+        if (error.message === "IMAGE_GENERATION_FAILED") {
+          toast.error("Görsel oluşturma servisi hata verdi. Lütfen tekrar deneyin.", {
             duration: 6000,
           });
+          return null;
+        }
+        if (error.message === "MISSING_BACKGROUNDS") {
+          const missingPages = (error as any).missingPages as number[] | undefined;
+          if (missingPages && missingPages.length > 0) {
+            toast.error(`Sayfa ${missingPages.map(i => i + 1).join(', ')} görselleri oluşturulamadı. Lütfen tekrar deneyin.`, {
+              duration: 8000,
+            });
+          } else {
+            toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
+              duration: 6000,
+            });
+          }
           return null;
         }
       }
@@ -533,12 +656,45 @@ export const useBooks = () => {
       setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
       
       // Sayfa görselleri oluştur
-      const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
+      const { data: imageData, error: imageError } = await supabase.functions.invoke("generate-book-images", {
         body: {
           pages: storyData.story.pages,
           theme
         },
       });
+
+      if (imageError) {
+        console.error("Image generation error:", imageError);
+        throw new Error("IMAGE_GENERATION_FAILED");
+      }
+
+      // Check for failed pages in summary and retry
+      const summary = imageData?.summary;
+      if (summary?.failed > 0) {
+        console.warn(`${summary.failed} pages failed to generate:`, summary.failedPages);
+        setProgress({ 
+          stage: 'retrying', 
+          percentage: 55, 
+          message: `${summary.failed} görsel oluşturulamadı, yeniden deneniyor...`,
+          failedPages: summary.failedPages 
+        });
+        
+        // Retry failed pages
+        const retryResults = await retryFailedImages(
+          storyData.story.pages,
+          summary.failedPages,
+          theme
+        );
+        
+        // Merge retry results with original images
+        const mergedImages = [...(imageData?.images || [])];
+        for (const result of retryResults) {
+          if (result.image) {
+            mergedImages[result.pageIndex] = result.image;
+          }
+        }
+        imageData.images = mergedImages;
+      }
 
       setProgress({ stage: 'saving', percentage: 70, message: 'Görseller kaydediliyor...' });
       
@@ -555,9 +711,15 @@ export const useBooks = () => {
       const uploadedUrls = await Promise.all(uploadPromises);
 
       // Background fotoğraflarının tamamının oluşturulduğunu kontrol et
-      const missingImages = uploadedUrls.filter(url => !url).length;
-      if (missingImages > 0) {
-        throw new Error("MISSING_BACKGROUNDS");
+      const missingIndices = uploadedUrls
+        .map((url, idx) => url ? null : idx)
+        .filter(idx => idx !== null) as number[];
+      
+      if (missingIndices.length > 0) {
+        console.error(`Missing images for pages: ${missingIndices.map(i => i + 1).join(', ')}`);
+        const error = new Error("MISSING_BACKGROUNDS");
+        (error as any).missingPages = missingIndices;
+        throw error;
       }
 
       const pages = storyData.story.pages.map((page: any, index: number) => ({
@@ -597,10 +759,23 @@ export const useBooks = () => {
           });
           return null;
         }
-        if (error.message === "MISSING_BACKGROUNDS") {
-          toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
+        if (error.message === "IMAGE_GENERATION_FAILED") {
+          toast.error("Görsel oluşturma servisi hata verdi. Lütfen tekrar deneyin.", {
             duration: 6000,
           });
+          return null;
+        }
+        if (error.message === "MISSING_BACKGROUNDS") {
+          const missingPages = (error as any).missingPages as number[] | undefined;
+          if (missingPages && missingPages.length > 0) {
+            toast.error(`Sayfa ${missingPages.map(i => i + 1).join(', ')} görselleri oluşturulamadı. Lütfen tekrar deneyin.`, {
+              duration: 8000,
+            });
+          } else {
+            toast.error("Bazı sayfa fotoğrafları oluşturulamadı. Lütfen tekrar deneyin.", {
+              duration: 6000,
+            });
+          }
           return null;
         }
       }

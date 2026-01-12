@@ -19,6 +19,15 @@ const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(500, "Theme must be less than 500 characters"),
 });
 
+// Result type for each page generation
+interface PageResult {
+  pageIndex: number;
+  success: boolean;
+  image: string | null;
+  attempts: number;
+  error?: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -40,17 +49,31 @@ serve(async (req) => {
 
     console.log(`Generating ${pages.length} images using Google Gemini API ${accessToken ? '(service account)' : '(API key)'} for theme: ${theme}`);
 
-    const images: (string | null)[] = [];
+    const MAX_RETRIES = 5;
+    const BASE_DELAY = 2000; // 2 seconds base delay
+    const MAX_DELAY = 60000; // Maximum 60 seconds delay
+    
+    const results: PageResult[] = [];
 
     async function delay(ms: number) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
+    // Exponential backoff with jitter
+    function getBackoffDelay(attempt: number): number {
+      const exponentialDelay = BASE_DELAY * Math.pow(2, attempt - 1);
+      const jitter = Math.random() * 1000; // 0-1 second jitter
+      return Math.min(exponentialDelay + jitter, MAX_DELAY);
+    }
+
+    async function generateImageWithRetry(
+      prompt: string, 
+      pageIndex: number,
+      attempt = 1
+    ): Promise<PageResult> {
       try {
-        console.log(`Calling Google Gemini API (attempt ${attempt})...`);
+        console.log(`[Page ${pageIndex + 1}] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES})...`);
         
-        // Use Gemini 3 Pro Image model with service account authentication
         const model = "gemini-2.0-flash-preview-image-generation";
         let url: string;
         let headers: Record<string, string>;
@@ -83,59 +106,108 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Gemini API error (attempt ${attempt}):`, response.status, errorText);
+          console.error(`[Page ${pageIndex + 1}] Gemini API error (attempt ${attempt}):`, response.status, errorText);
           
-          if (response.status === 429 && attempt < 3) {
-            console.log(`Rate limited, waiting ${15 * attempt} seconds...`);
-            await delay(15 * attempt * 1000);
-            return generateImageWithRetry(prompt, attempt + 1);
+          // Rate limit - use longer backoff
+          if (response.status === 429) {
+            if (attempt < MAX_RETRIES) {
+              const backoffDelay = getBackoffDelay(attempt) * 2; // Double delay for rate limits
+              console.log(`[Page ${pageIndex + 1}] Rate limited, waiting ${Math.round(backoffDelay / 1000)}s...`);
+              await delay(backoffDelay);
+              return generateImageWithRetry(prompt, pageIndex, attempt + 1);
+            }
+            return {
+              pageIndex,
+              success: false,
+              image: null,
+              attempts: attempt,
+              error: "Rate limit aşıldı, maksimum deneme sayısına ulaşıldı"
+            };
           }
           
+          // Auth error - don't retry
           if (response.status === 403) {
-            throw new Error("API erişim izni yok. API anahtarını kontrol edin.");
+            return {
+              pageIndex,
+              success: false,
+              image: null,
+              attempts: attempt,
+              error: "API erişim izni yok"
+            };
           }
           
-          if (attempt < 3) {
-            console.log(`Retrying (attempt ${attempt + 1})...`);
-            await delay(3000 * attempt);
-            return generateImageWithRetry(prompt, attempt + 1);
+          // Other errors - retry with backoff
+          if (attempt < MAX_RETRIES) {
+            const backoffDelay = getBackoffDelay(attempt);
+            console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
+            await delay(backoffDelay);
+            return generateImageWithRetry(prompt, pageIndex, attempt + 1);
           }
           
-          console.error(`Failed after ${attempt} attempts, returning null`);
-          return null;
+          return {
+            pageIndex,
+            success: false,
+            image: null,
+            attempts: attempt,
+            error: `API hatası: ${response.status}`
+          };
         }
 
         const data = await response.json();
-        console.log("Gemini API response received");
         
         // Extract base64 image from Gemini response
         const parts = data?.candidates?.[0]?.content?.parts;
         if (parts) {
           for (const part of parts) {
             if (part.inlineData?.mimeType?.startsWith("image/")) {
-              console.log("Image generated successfully");
-              return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+              console.log(`[Page ${pageIndex + 1}] ✓ Image generated successfully (attempt ${attempt})`);
+              return {
+                pageIndex,
+                success: true,
+                image: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                attempts: attempt
+              };
             }
           }
         }
         
-        console.error(`No image data in response (attempt ${attempt})`);
-        if (attempt < 3) {
-          await delay(2000 * attempt);
-          return generateImageWithRetry(prompt, attempt + 1);
+        // No image in response - retry
+        console.error(`[Page ${pageIndex + 1}] No image data in response (attempt ${attempt})`);
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
+          await delay(backoffDelay);
+          return generateImageWithRetry(prompt, pageIndex, attempt + 1);
         }
         
-        return null;
+        return {
+          pageIndex,
+          success: false,
+          image: null,
+          attempts: attempt,
+          error: "Görsel yanıtta bulunamadı"
+        };
       } catch (error) {
-        console.error(`Error generating image (attempt ${attempt}):`, error);
-        if (attempt < 3) {
-          await delay(3000 * attempt);
-          return generateImageWithRetry(prompt, attempt + 1);
+        console.error(`[Page ${pageIndex + 1}] Error (attempt ${attempt}):`, error);
+        
+        if (attempt < MAX_RETRIES) {
+          const backoffDelay = getBackoffDelay(attempt);
+          console.log(`[Page ${pageIndex + 1}] Retrying in ${Math.round(backoffDelay / 1000)}s...`);
+          await delay(backoffDelay);
+          return generateImageWithRetry(prompt, pageIndex, attempt + 1);
         }
-        return null;
+        
+        return {
+          pageIndex,
+          success: false,
+          image: null,
+          attempts: attempt,
+          error: error instanceof Error ? error.message : "Bilinmeyen hata"
+        };
       }
     }
 
+    // Generate all images
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
       const shortDesc = page.description.length > 150 
@@ -150,19 +222,45 @@ Theme: ${theme}
 Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality.
 The illustration should be in landscape orientation (16:9 aspect ratio), filling the entire frame edge-to-edge with no borders or margins.`;
       
-      console.log(`Generating image ${index + 1}/${pages.length}: ${page.character}`);
-      const img = await generateImageWithRetry(prompt);
-      images.push(img);
+      console.log(`\n=== Generating image ${index + 1}/${pages.length}: ${page.character} ===`);
+      const result = await generateImageWithRetry(prompt, index);
+      results.push(result);
       
-      // Small delay between requests
+      // Delay between requests to avoid rate limiting
       if (index < pages.length - 1) {
-        await delay(1000);
+        await delay(1500);
       }
     }
 
-    console.log(`Successfully generated ${images.filter((img) => img !== null).length} images`);
+    // Build summary
+    const successCount = results.filter(r => r.success).length;
+    const failedPages = results.filter(r => !r.success);
+    
+    console.log(`\n=== Generation Summary ===`);
+    console.log(`Total: ${pages.length}, Success: ${successCount}, Failed: ${failedPages.length}`);
+    
+    if (failedPages.length > 0) {
+      console.log(`Failed pages:`);
+      failedPages.forEach(f => {
+        console.log(`  - Page ${f.pageIndex + 1}: ${f.error} (${f.attempts} attempts)`);
+      });
+    }
 
-    return new Response(JSON.stringify({ images }), {
+    // Return detailed response
+    return new Response(JSON.stringify({ 
+      images: results.map(r => r.image),
+      summary: {
+        total: pages.length,
+        success: successCount,
+        failed: failedPages.length,
+        failedPages: failedPages.map(f => ({
+          pageIndex: f.pageIndex,
+          pageNumber: f.pageIndex + 1,
+          error: f.error,
+          attempts: f.attempts
+        }))
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
