@@ -53,13 +53,14 @@ serve(async (req) => {
     }
 
     // Map model selection to actual model names
+    // For direct Google API: use imagen-3.0-generate-002 via Vertex AI or gemini-2.0-flash-exp for experimental image output
     const modelMap: Record<string, { google: string, lovable: string }> = {
       "gemini-2.5-flash-image": { 
-        google: "gemini-2.0-flash-preview-image-generation", 
+        google: "gemini-2.0-flash-exp", 
         lovable: "google/gemini-2.5-flash-image-preview" 
       },
       "gemini-3-pro-image": { 
-        google: "gemini-2.0-flash-preview-image-generation", // Fallback for direct Google API
+        google: "gemini-2.0-flash-exp", 
         lovable: "google/gemini-3-pro-image-preview" 
       },
     };
