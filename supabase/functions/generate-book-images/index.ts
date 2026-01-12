@@ -29,14 +29,14 @@ serve(async (req) => {
     const { pages, theme } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
     
-    // Use Lovable AI Gateway for image generation
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // Use Google Gemini API directly
+    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY yapılandırılmamış");
+    if (!GOOGLE_AI_API_KEY) {
+      throw new Error("GOOGLE_AI_API_KEY yapılandırılmamış");
     }
 
-    console.log(`Generating ${pages.length} high-resolution images using Lovable AI Gateway for theme: ${theme}`);
+    console.log(`Generating ${pages.length} images using Google Gemini API for theme: ${theme}`);
 
     const images: (string | null)[] = [];
 
@@ -46,27 +46,27 @@ serve(async (req) => {
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
       try {
-        console.log(`Calling Lovable AI Gateway (attempt ${attempt})...`);
+        console.log(`Calling Google Gemini API (attempt ${attempt})...`);
         
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        // Using gemini-2.0-flash-exp with image generation
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image-preview",
-            messages: [{
-              role: "user",
-              content: prompt
+            contents: [{
+              parts: [{ text: prompt }]
             }],
-            modalities: ["image", "text"]
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"]
+            }
           }),
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`Image gen failed (attempt ${attempt}):`, response.status, errorText);
+          console.error(`Gemini API error (attempt ${attempt}):`, response.status, errorText);
           
           if (response.status === 429 && attempt < 3) {
             console.log(`Rate limited, waiting ${15 * attempt} seconds...`);
@@ -74,13 +74,13 @@ serve(async (req) => {
             return generateImageWithRetry(prompt, attempt + 1);
           }
           
-          if (response.status === 402) {
-            throw new Error("API kredileri yetersiz.");
+          if (response.status === 403) {
+            throw new Error("API erişim izni yok. API anahtarını kontrol edin.");
           }
           
           if (attempt < 3) {
             console.log(`Retrying (attempt ${attempt + 1})...`);
-            await delay(5000 * attempt);
+            await delay(3000 * attempt);
             return generateImageWithRetry(prompt, attempt + 1);
           }
           
@@ -89,18 +89,22 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        console.log("Lovable AI response received");
+        console.log("Gemini API response received");
         
-        // Extract base64 image from Lovable AI response
-        const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (imageData) {
-          console.log("Image generated successfully");
-          return imageData;
+        // Extract base64 image from Gemini response
+        const parts = data?.candidates?.[0]?.content?.parts;
+        if (parts) {
+          for (const part of parts) {
+            if (part.inlineData?.mimeType?.startsWith("image/")) {
+              console.log("Image generated successfully");
+              return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+          }
         }
         
         console.error(`No image data in response (attempt ${attempt})`);
         if (attempt < 3) {
-          await delay(3000 * attempt);
+          await delay(2000 * attempt);
           return generateImageWithRetry(prompt, attempt + 1);
         }
         
@@ -108,7 +112,7 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Error generating image (attempt ${attempt}):`, error);
         if (attempt < 3) {
-          await delay(5000 * attempt);
+          await delay(3000 * attempt);
           return generateImageWithRetry(prompt, attempt + 1);
         }
         return null;
@@ -117,7 +121,6 @@ serve(async (req) => {
 
     for (let index = 0; index < pages.length; index++) {
       const page = pages[index];
-      // Limit description to 150 chars for prompt
       const shortDesc = page.description.length > 150 
         ? page.description.substring(0, 150) + "..." 
         : page.description;
@@ -128,16 +131,15 @@ Character: ${page.character} ${page.emoji}
 Scene: ${shortDesc}
 Theme: ${theme}
 Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality.
-The illustration should be in landscape orientation (16:9 aspect ratio), filling the entire frame edge-to-edge with no borders or margins.
-Ultra high resolution.`;
+The illustration should be in landscape orientation (16:9 aspect ratio), filling the entire frame edge-to-edge with no borders or margins.`;
       
       console.log(`Generating image ${index + 1}/${pages.length}: ${page.character}`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
       
-      // Delay between requests to avoid rate limiting
+      // Small delay between requests
       if (index < pages.length - 1) {
-        await delay(2000);
+        await delay(1000);
       }
     }
 
