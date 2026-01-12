@@ -105,7 +105,11 @@ const CreateFromDrawing = () => {
 
         {/* Çizim Yükleme */}
         <label htmlFor="drawing-upload" className="block cursor-pointer mb-6">
-          <div className="border-2 border-dashed border-primary/50 rounded-2xl p-8 hover:border-primary hover:bg-primary/5 transition-all">
+          <div className={`border-2 border-dashed rounded-2xl hover:border-primary hover:bg-primary/5 transition-all ${
+            selectedImage 
+              ? "border-primary/30 p-3" 
+              : "border-primary/50 p-8"
+          }`}>
             <input
               type="file"
               accept="image/*"
@@ -114,32 +118,33 @@ const CreateFromDrawing = () => {
               id="drawing-upload"
               disabled={loading}
             />
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                <Camera className="w-10 h-10 text-primary" />
+            <div className={`flex items-center gap-3 ${selectedImage ? "" : "flex-col gap-4"}`}>
+              <div className={`rounded-full bg-primary/10 flex items-center justify-center ${
+                selectedImage ? "w-10 h-10" : "w-20 h-20"
+              }`}>
+                <Camera className={selectedImage ? "w-5 h-5 text-primary" : "w-10 h-10 text-primary"} />
               </div>
-              <div className="text-center">
-                <p className="font-semibold text-lg mb-1">
-                  {selectedImage ? "✅ Çizim Yüklendi!" : "Çizim Yükle"}
+              <div className={selectedImage ? "" : "text-center"}>
+                <p className={`font-semibold ${selectedImage ? "text-sm" : "text-lg mb-1"}`}>
+                  {selectedImage ? "✅ Çizim Yüklendi! (değiştirmek için dokun)" : "Çizim Yükle"}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Fotoğraf çek veya galeriden seç
-                </p>
+                {!selectedImage && (
+                  <p className="text-sm text-muted-foreground">
+                    Fotoğraf çek veya galeriden seç
+                  </p>
+                )}
               </div>
             </div>
           </div>
         </label>
 
         {previewUrl && (
-          <div className="bg-card rounded-2xl overflow-hidden border border-border mb-6">
-            <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-3 border-b border-border">
-              <p className="text-sm font-semibold text-center">Yüklenen Çizim</p>
-            </div>
+          <div className="bg-card rounded-2xl overflow-hidden border-2 border-primary shadow-lg mb-6 animate-fade-in">
             <div className="p-4 space-y-4">
               <img
                 src={previewUrl}
                 alt="Yüklenen çizim"
-                className="w-full h-auto rounded-xl"
+                className="w-full h-auto rounded-xl shadow-md"
               />
               <div className="space-y-2">
                 <Label htmlFor="drawing-description" className="text-sm text-muted-foreground">
