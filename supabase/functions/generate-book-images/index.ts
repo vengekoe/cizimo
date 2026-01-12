@@ -29,13 +29,13 @@ serve(async (req) => {
     const { pages, theme } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
     
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY yapılandırılmamış");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY yapılandırılmamış");
     }
 
-    console.log(`Generating ${pages.length} images for theme: ${theme}`);
+    console.log(`Generating ${pages.length} high-resolution images for theme: ${theme}`);
 
     const images: (string | null)[] = [];
 
@@ -44,63 +44,83 @@ serve(async (req) => {
     }
 
     async function generateImageWithRetry(prompt: string, attempt = 1): Promise<string | null> {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${GOOGLE_AI_API_KEY}`;
-      const body = JSON.stringify({
-        contents: [{
-          role: "user",
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          responseModalities: ["IMAGE"]
+      try {
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-image-1",
+            prompt: prompt,
+            n: 1,
+            size: "1536x1024", // Landscape, high resolution for all devices
+            quality: "high",
+            output_format: "png",
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`OpenAI image gen failed (attempt ${attempt}):`, response.status, errorText);
+          
+          if (response.status === 429 && attempt < 3) {
+            console.log(`Rate limited, waiting ${10 * attempt} seconds...`);
+            await delay(10 * attempt * 1000);
+            return generateImageWithRetry(prompt, attempt + 1);
+          }
+          
+          if (attempt < 3) {
+            console.log(`Retrying (attempt ${attempt + 1})...`);
+            await delay(3000 * attempt);
+            return generateImageWithRetry(prompt, attempt + 1);
+          }
+          
+          console.error(`Failed after ${attempt} attempts, returning null`);
+          return null;
         }
-      });
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Gemini image gen failed (attempt ${attempt}):`, response.status, errorText);
+        const data = await response.json();
+        console.log("OpenAI response received");
         
-        if (response.status === 429 && attempt < 3) {
-          console.log(`Rate limited, waiting ${8 * attempt} seconds...`);
-          await delay(8 * attempt * 1000);
+        // gpt-image-1 returns base64 directly
+        const base64 = data?.data?.[0]?.b64_json;
+        
+        if (base64) {
+          return `data:image/png;base64,${base64}`;
+        }
+        
+        // Fallback to URL if b64_json not available
+        const url = data?.data?.[0]?.url;
+        if (url) {
+          // Download the image and convert to base64
+          const imgResponse = await fetch(url);
+          const arrayBuffer = await imgResponse.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (let i = 0; i < uint8Array.length; i++) {
+            binary += String.fromCharCode(uint8Array[i]);
+          }
+          const base64FromUrl = btoa(binary);
+          return `data:image/png;base64,${base64FromUrl}`;
+        }
+        
+        console.error(`No image data in response (attempt ${attempt})`);
+        if (attempt < 3) {
+          await delay(2000 * attempt);
           return generateImageWithRetry(prompt, attempt + 1);
         }
         
-        console.error(`Failed after ${attempt} attempts, returning null`);
         return null;
-      }
-
-      const data = await response.json();
-      const parts = data?.candidates?.[0]?.content?.parts || [];
-      const inline = parts.find((p: any) => p.inlineData)?.inlineData;
-      const base64 = inline?.data as string | undefined;
-      const mime = inline?.mimeType as string | undefined;
-      
-      if (!base64) {
-        const finishReason = data?.candidates?.[0]?.finishReason;
-        console.error(`Gemini görsel döndürmedi (attempt ${attempt}): finishReason=${finishReason}`);
-        
-        // NO_IMAGE veya diğer hatalar için retry
+      } catch (error) {
+        console.error(`Error generating image (attempt ${attempt}):`, error);
         if (attempt < 3) {
-          console.log(`Retrying image generation (attempt ${attempt + 1})...`);
-          await delay(2000 * attempt);
-          // Prompt'u hafifçe değiştirerek yeniden dene
-          const modifiedPrompt = prompt + ` (variation ${attempt})`;
-          return generateImageWithRetry(modifiedPrompt, attempt + 1);
+          await delay(3000 * attempt);
+          return generateImageWithRetry(prompt, attempt + 1);
         }
-        
-        console.error(`Failed to generate image after ${attempt} attempts`);
         return null;
       }
-
-      return `data:${mime || "image/png"};base64,${base64}`;
     }
 
     for (let index = 0; index < pages.length; index++) {
@@ -109,11 +129,23 @@ serve(async (req) => {
       const shortDesc = page.description.length > 150 
         ? page.description.substring(0, 150) + "..." 
         : page.description;
-      const prompt = `Create a vibrant children's book illustration suitable for ages 3-7. IMPORTANT: No text, no letters, no words, no captions on the image - pure illustration only. Character: ${page.character} ${page.emoji}. ${shortDesc}. Theme: ${theme}. Style: colorful, friendly, simple shapes, high-contrast, warm and inviting.`;
-      console.log(`Generating image ${index + 1}/${pages.length}: ${prompt.substring(0, 80)}...`);
+      
+      const prompt = `Create a vibrant, high-quality children's book illustration suitable for ages 3-7. 
+CRITICAL: No text, no letters, no words, no captions anywhere in the image - pure illustration only.
+Character: ${page.character} ${page.emoji}
+Scene: ${shortDesc}
+Theme: ${theme}
+Style: Colorful, friendly, simple shapes, high-contrast, warm and inviting, professional children's book quality.
+The illustration should fill the entire frame edge-to-edge with no borders or margins.`;
+      
+      console.log(`Generating image ${index + 1}/${pages.length}: ${page.character}`);
       const img = await generateImageWithRetry(prompt);
       images.push(img);
-      await delay(500);
+      
+      // Small delay between requests to avoid rate limiting
+      if (index < pages.length - 1) {
+        await delay(1000);
+      }
     }
 
     console.log(`Successfully generated ${images.filter((img) => img !== null).length} images`);
