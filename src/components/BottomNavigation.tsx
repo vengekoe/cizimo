@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { BookOpen, Plus, User, Paintbrush, Palette, Sparkles, Menu, X } from "lucide-react";
+import { BookOpen, Plus, User, Paintbrush, Palette, Sparkles, Menu, X, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSubscription } from "@/hooks/useSubscription";
 import {
   Sheet,
   SheetContent,
