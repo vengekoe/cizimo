@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      book_comments: {
+        Row: {
+          book_id: string
+          child_id: string
+          content: string
+          created_at: string
+          emoji: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          child_id: string
+          content: string
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          child_id?: string
+          content?: string
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_comments_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "book_comments_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      book_likes: {
+        Row: {
+          book_id: string
+          child_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          child_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          child_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_likes_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "book_likes_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_pages: {
         Row: {
           background_image: string | null
