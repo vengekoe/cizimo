@@ -232,21 +232,41 @@ serve(async (req) => {
       console.log(`Theme sanitized: ${themeCheck.found.join(', ')} → ${safeTheme}`);
     }
 
-    const prompt = `"${safeTheme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+    const prompt = `"${safeTheme}" temalı ${pageCount} sayfalık TUTARLI ve AKICI bir çocuk hikayesi oluştur:
 
 ÖNEMLİ TELİF HAKKI KURALI:
 - Hikayelerde Marvel, DC, Disney, Pokemon veya herhangi bir telif haklı karakter adı KULLANMA
 - Örneğin "Hulk" yerine "yeşil güçlü dev", "Superman" yerine "uçan kahraman" gibi genel tanımlamalar kullan
 - Çocuğun sevdiği karakterden SADECE ilham al, karakter adını hikayede KULLANMA
 
-KURALLAR:
+HİKAYE YAPISI (ÇOK ÖNEMLİ):
+1) Önce BÜTÜN bir hikaye kurgula (tek seferde baştan sona)
+2) Bir çatışma/problem ile başla, gelişme süreci yaz, mutlu sonla bitir
+3) Sonra bu hikayeyi ${pageCount} sayfaya böl
+
+SAYFA GEÇİŞLERİ (KRİTİK):
+- Her sayfa bir öncekinin DOĞRUDAN devamı olmalı
+- Sayfalar arasında "Bu sırada...", "Bir süre sonra...", "Tam o anda..." gibi BAĞLAYICI ifadeler kullan
+- Her sayfanın son cümlesi bir sonraki sayfaya merak uyandırmalı
+- Karakterler aynı kalmalı ve tutarlı davranmalı
+- Olaylar mantıksal bir sıra ile ilerlemeli
+
+KÖTÜ ÖRNEK (YAPMA):
+- Sayfa 1: "Ali ormana gitti."
+- Sayfa 2: "Ali bir tavşan gördü."
+- Sayfa 3: "Ali eve döndü."
+
+İYİ ÖRNEK (BÖYLE YAP):
+- Sayfa 1: "Ali ormandaki gizemli sesleri merak ediyordu. Cesurca ağaçların arasına ilerledi..."
+- Sayfa 2: "Tam o sırada, bir çalının arkasından minik bir tavşan fırladı! Tavşanın ayağı yaralıydı..."
+- Sayfa 3: "Ali tavşanı nazikçe kucağına aldı ve 'Seni iyileştireceğim' dedi. Birlikte eve doğru yola koyuldular..."
+
+SAYFA İÇERİĞİ:
 1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
-2) Önce tek parça bütün bir hikaye (başlangıç-gelişme-sonuç) kurgula
-3) Sonra bu hikayeyi ${pageCount} ardışık sahneye böl; her sayfa bir öncekinin devamı olsun
-4) Karakterler tutarlı davransın ve her sayfada gelişsinler
-5) Son sayfada pozitif, mutlu bir final olsun
-6) Her sayfanın açıklaması en az 3 cümle olmalı ve bir önceki sayfanın devamı olmalı
-7) Her sayfa için "textPosition" belirle - görselin ana odak noktasına göre metnin nereye yerleştirileceğini seç:
+2) Her sayfanın açıklaması EN AZ 4-5 cümle olmalı
+3) Duygular, düşünceler ve diyaloglar ekle
+4) Son sayfada hikaye tam olarak sonlanmalı (açık uç bırakma)
+5) Her sayfa için "textPosition" belirle - görselin ana odak noktasına göre metnin nereye yerleştirileceğini seç:
    - "top": Ana odak altta veya ortadaysa
    - "bottom": Ana odak üstteyse
    - "top-left": Ana odak sağ alttaysa
@@ -262,15 +282,15 @@ JSON FORMATINDA DÖNÜŞ YAP (tüm içerik ${language === "tr" ? "Türkçe" : "E
     {
       "character": "${language === "tr" ? "Karakter adı (Türkçe)" : "Character name (English)"}",
       "emoji": "🎨",
-      "title": "${language === "tr" ? "Sayfa başlığı (Türkçe)" : "Page title (English)"}",
-      "description": "${language === "tr" ? "Detaylı açıklama (Türkçe, en az 3 cümle, hikayenin devamı)" : "Detailed description (English, at least 3 sentences, continuation of story)"}",
-      "sound": "${language === "tr" ? "Ses efekti (Türkçe)" : "Sound effect (English)"}",
+      "title": "${language === "tr" ? "Sayfa başlığı - çekici ve merak uyandırıcı" : "Page title - engaging and curious"}",
+      "description": "${language === "tr" ? "Detaylı açıklama (4-5 cümle, diyalog dahil, bir önceki sayfanın devamı)" : "Detailed description (4-5 sentences, with dialogue, continuation of previous page)"}",
+      "sound": "bee/bird/cricket/frog",
       "textPosition": "top"
     }
   ]
 }
 
-Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm içerik ${language === "tr" ? "TÜRKÇE" : "ENGLISH"} olmalıdır!`;
+HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birbirine bağlı!`;
 
     let response: Response;
 
