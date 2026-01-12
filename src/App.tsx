@@ -14,6 +14,7 @@ import CreateFromDrawing from "./pages/CreateFromDrawing";
 import CreateFromTheme from "./pages/CreateFromTheme";
 import CreateCustom from "./pages/CreateCustom";
 import { BackgroundTaskIndicator } from "./components/BackgroundTaskIndicator";
+import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +30,7 @@ const App = () => (
           <Route path="/book/:bookId" element={<BookReader />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<ProtectedAdminRoute><Admin /></ProtectedAdminRoute>} />
           <Route path="/create/drawing" element={<CreateFromDrawing />} />
           <Route path="/create/theme" element={<CreateFromTheme />} />
           <Route path="/create/custom" element={<CreateCustom />} />
