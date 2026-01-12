@@ -279,6 +279,12 @@ export const useBooks = () => {
   };
 
   const uploadImageToStorage = async (imageSource: string, bookId: string, pageIndex: number): Promise<string | null> => {
+    // User must be authenticated for storage upload (RLS requires user folder structure)
+    if (!user?.id) {
+      console.error('User not authenticated for image upload');
+      return null;
+    }
+
     try {
       let blob: Blob;
       let ext = 'png';
@@ -310,7 +316,8 @@ export const useBooks = () => {
 
       const baseName = pageIndex >= 0 ? `page-${pageIndex}` : 'cover';
       const safeExt = ext.includes(';') ? 'png' : ext;
-      const fileName = `${bookId}/${baseName}.${safeExt}`;
+      // Use user ID as folder prefix to comply with RLS policies: userId/bookId/filename
+      const fileName = `${user.id}/${bookId}/${baseName}.${safeExt}`;
 
       const { error } = await supabase.storage
         .from('book-images')
