@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { callGeminiWithServiceAccount, getAccessToken } from "../_shared/google-auth.ts";
 
@@ -7,6 +8,32 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Helper to verify authentication
+async function verifyAuth(req: Request): Promise<{ user: any; error?: string }> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return { user: null, error: 'Authentication required' };
+  }
+
+  // Allow service role key for internal calls
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (authHeader === `Bearer ${serviceRoleKey}`) {
+    return { user: { id: 'service-role' } };
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    return { user: null, error: 'Invalid authentication' };
+  }
+  return { user };
+}
 
 const profileSchema = z.object({
   age: z.number().nullable().optional(),
@@ -63,10 +90,19 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const { user, error: authError } = await verifyAuth(req);
+    if (authError) {
+      return new Response(
+        JSON.stringify({ error: authError }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { imageBase64, language, pageCount, model: requestedModel, userDescription, profile } = requestSchema.parse(body);
 
-    console.log(`Analyzing drawing with ${requestedModel}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}, hasProfile=${!!profile}`);
+    console.log(`Analyzing drawing: pages=${pageCount}, model=${requestedModel}`);
 
     // Build personalization context from profile
     let personalizationHints = "";
@@ -281,7 +317,7 @@ JSON formatında dön:
       }
     }
 
-    console.log(`Drawing analyzed successfully with ${usedModel}`);
+    console.log('Drawing analyzed successfully');
 
     // Build personalization for story prompt
     let storyPersonalization = "";
@@ -475,7 +511,7 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
     }
 
     const validated = storySchema.parse(story);
-    console.log(`Story generated and validated successfully with ${storyModel}`);
+    console.log('Story from drawing generated successfully');
 
     return new Response(
       JSON.stringify({
@@ -485,22 +521,17 @@ HATIRLA: ${pageCount} sayfa, her biri EN AZ 4 cümle, BAĞLAYICI ifadelerle birb
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in generate-story-from-drawing:", error);
+    console.error("Story from drawing error:", error instanceof Error ? error.message : 'Unknown');
 
     if (error instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({
-          error: "Validation error",
-          details: error.errors,
-        }),
+        JSON.stringify({ error: "Validation error" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
+      JSON.stringify({ error: "Story generation failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
