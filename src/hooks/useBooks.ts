@@ -347,9 +347,11 @@ export const useBooks = () => {
       const imageBase64 = await compressImage(imageFile);
       
       // Önce orijinal çizimi storage'a yükle
-      setProgress({ stage: 'cover', percentage: 30, message: 'Çizim yükleniyor...' });
+      setProgress({ stage: 'cover', percentage: 20, message: 'Çizim yükleniyor...' });
       const coverImageUrl = await uploadImageToStorage(imageBase64, bookId, -1); // -1 = cover image
 
+      setProgress({ stage: 'story', percentage: 25, message: 'Hikaye oluşturuluyor...' });
+      
       // Çizimden hikaye oluştur
       const { data: storyData, error: storyError } = await supabase.functions.invoke(
         "generate-story-from-drawing",
@@ -384,7 +386,7 @@ export const useBooks = () => {
         throw storyError;
       }
 
-      setProgress({ stage: 'images', percentage: 50, message: 'Sayfa görselleri oluşturuluyor...' });
+      setProgress({ stage: 'images', percentage: 40, message: 'Sayfa görselleri oluşturuluyor...' });
 
       // Görselleri oluştur
       const { data: imageData } = await supabase.functions.invoke("generate-book-images", {
@@ -394,19 +396,26 @@ export const useBooks = () => {
         },
       });
 
-      setProgress({ stage: 'saving', percentage: 70, message: 'Görseller kaydediliyor...' });
+      setProgress({ stage: 'saving', percentage: 75, message: 'Görseller kaydediliyor...' });
 
       // Görselleri storage'a yükle
-      const uploadPromises = (imageData?.images || []).map((imageBase64: string, index: number) => {
-        if (imageBase64) {
-          return uploadImageToStorage(imageBase64, bookId, index);
+      const totalImages = (imageData?.images || []).length;
+      const uploadedUrls: (string | null)[] = [];
+      
+      for (let i = 0; i < totalImages; i++) {
+        const imageBase64Item = imageData?.images?.[i];
+        if (imageBase64Item) {
+          const url = await uploadImageToStorage(imageBase64Item, bookId, i);
+          uploadedUrls.push(url);
+        } else {
+          uploadedUrls.push(null);
         }
-        return Promise.resolve(null);
-      });
+        // Her görsel yüklendiğinde progress güncelle
+        const uploadProgress = 75 + Math.floor((i + 1) / totalImages * 15);
+        setProgress({ stage: 'saving', percentage: uploadProgress, message: `Görseller kaydediliyor (${i + 1}/${totalImages})...` });
+      }
 
-      setProgress({ stage: 'complete', percentage: 90, message: 'Kitap hazırlanıyor...' });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
+      setProgress({ stage: 'complete', percentage: 95, message: 'Kitap hazırlanıyor...' });
 
       // Background fotoğraflarının tamamının oluşturulduğunu kontrol et
       const missingImages = uploadedUrls.filter(url => !url).length;
