@@ -22,7 +22,7 @@ const CreateFromDrawing = () => {
   const [language, setLanguage] = useState<"tr" | "en">(
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
-  const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 10);
+  const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

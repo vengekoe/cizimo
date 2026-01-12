@@ -21,7 +21,7 @@ const CreateCustom = () => {
   const [language, setLanguage] = useState<"tr" | "en">(
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
-  const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 10);
+  const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
   const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
     (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
   );
