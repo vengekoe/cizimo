@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
+import { NoCreditsPrompt } from "@/components/subscription/UpgradePrompt";
+import { CreditDisplay } from "@/components/subscription/CreditDisplay";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları", category: "adventure" },
@@ -30,6 +33,7 @@ const CreateFromTheme = () => {
   const { books, loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
   const { children, getSelectedChild } = useChildren();
+  const { canCreateStory, useCredit, getMaxPages, remainingCredits } = useSubscription();
   const navigate = useNavigate();
   
   const [language, setLanguage] = useState<"tr" | "en">(
@@ -44,6 +48,17 @@ const CreateFromTheme = () => {
     if (!selectedChild) {
       toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
       return;
+    }
+
+    if (!canCreateStory) {
+      toast.error("Hikaye krediniz kalmadı. Lütfen paketinizi yükseltin.");
+      return;
+    }
+    
+    // Adjust page count based on subscription
+    const adjustedPageCount = getMaxPages(pageCount);
+    if (adjustedPageCount !== pageCount) {
+      toast.info(`Sayfa sayısı paketinize göre ${adjustedPageCount}'e ayarlandı.`);
     }
     
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
@@ -63,8 +78,10 @@ const CreateFromTheme = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(theme, language, pageCount, aiModel, profileData, themeCategory || category, imageModel);
+    const book = await generateBook(theme, language, adjustedPageCount, aiModel, profileData, themeCategory || category, imageModel);
     if (book) {
+      // Use credit after successful generation
+      await useCredit();
       toast.success("Yeni kitap hazır!");
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
     }
@@ -89,7 +106,15 @@ const CreateFromTheme = () => {
           </div>
         </div>
 
-        <StoryChildSelector className="mb-4" />
+        <CreditDisplay />
+        
+        {!canCreateStory && remainingCredits === 0 && (
+          <div className="mt-4">
+            <NoCreditsPrompt />
+          </div>
+        )}
+
+        <StoryChildSelector className="mt-4 mb-4" />
         
         <StorySettings
           language={language}
@@ -105,7 +130,7 @@ const CreateFromTheme = () => {
             <Button
               key={item.theme}
               onClick={() => handleSelectTheme(item.theme, item.category)}
-              disabled={loading || books.length >= 10 || children.length === 0}
+              disabled={loading || !canCreateStory || children.length === 0}
               variant="outline"
               className="h-auto py-4 px-4 flex flex-col items-center gap-2 hover:bg-primary/10 transition-all rounded-2xl"
             >
@@ -118,14 +143,6 @@ const CreateFromTheme = () => {
             </Button>
           ))}
         </div>
-
-        {books.length >= 10 && (
-          <div className="mt-6 p-4 bg-accent/20 rounded-2xl border border-accent/50">
-            <p className="text-center text-sm">
-              ⚠️ Maksimum 10 kitap. Yeni kitap için önce bir kitabı silin.
-            </p>
-          </div>
-        )}
       </div>
 
       <BottomNavigation />

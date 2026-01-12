@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,11 +13,14 @@ import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
+import { NoCreditsPrompt } from "@/components/subscription/UpgradePrompt";
+import { CreditDisplay } from "@/components/subscription/CreditDisplay";
 
 const CreateCustom = () => {
-  const { books, loading, progress, generateBook } = useBooks();
+  const { loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
   const { children, getSelectedChild } = useChildren();
+  const { canCreateStory, useCredit, getMaxPages, remainingCredits } = useSubscription();
   const navigate = useNavigate();
   
   const [customTheme, setCustomTheme] = useState("");
@@ -37,6 +41,17 @@ const CreateCustom = () => {
       toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
       return;
     }
+
+    if (!canCreateStory) {
+      toast.error("Hikaye krediniz kalmadı. Lütfen paketinizi yükseltin.");
+      return;
+    }
+
+    // Adjust page count based on subscription
+    const adjustedPageCount = getMaxPages(pageCount);
+    if (adjustedPageCount !== pageCount) {
+      toast.info(`Sayfa sayısı paketinize göre ${adjustedPageCount}'e ayarlandı.`);
+    }
     
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
     const imageModel = (profile?.preferred_image_model as "gemini-2.5-flash-image" | "gemini-3-pro-image") || "gemini-2.5-flash-image";
@@ -55,8 +70,10 @@ const CreateCustom = () => {
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
     
-    const book = await generateBook(customTheme, language, pageCount, aiModel, profileData, category, imageModel);
+    const book = await generateBook(customTheme, language, adjustedPageCount, aiModel, profileData, category, imageModel);
     if (book) {
+      // Use credit after successful generation
+      await useCredit();
       setCustomTheme("");
       toast.success("Yeni kitap hazır!");
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
@@ -82,7 +99,15 @@ const CreateCustom = () => {
           </div>
         </div>
 
-        <StoryChildSelector className="mb-4" />
+        <CreditDisplay />
+        
+        {!canCreateStory && remainingCredits === 0 && (
+          <div className="mt-4">
+            <NoCreditsPrompt />
+          </div>
+        )}
+
+        <StoryChildSelector className="mt-4 mb-4" />
         
         <StorySettings
           language={language}
@@ -129,7 +154,7 @@ const CreateCustom = () => {
 
         <Button
           onClick={handleGenerate}
-          disabled={loading || !customTheme.trim() || books.length >= 10 || children.length === 0}
+          disabled={loading || !customTheme.trim() || !canCreateStory || children.length === 0}
           className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-6 text-lg rounded-2xl"
         >
           {loading ? (
@@ -144,14 +169,6 @@ const CreateCustom = () => {
             </>
           )}
         </Button>
-
-        {books.length >= 10 && (
-          <div className="mt-6 p-4 bg-accent/20 rounded-2xl border border-accent/50">
-            <p className="text-center text-sm">
-              ⚠️ Maksimum 10 kitap. Yeni kitap için önce bir kitabı silin.
-            </p>
-          </div>
-        )}
       </div>
 
       <BottomNavigation />

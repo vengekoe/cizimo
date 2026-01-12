@@ -526,6 +526,165 @@ export type Database = {
           },
         ]
       }
+      subscription_features: {
+        Row: {
+          advanced_personalization: boolean
+          advanced_stats: boolean
+          audio_story: boolean
+          basic_personalization: boolean
+          basic_stats: boolean
+          cover_design_selection: boolean
+          custom_illustration: boolean
+          detailed_stats: boolean
+          family_sharing: boolean
+          favorite_pages: boolean
+          font_selection: boolean
+          friend_sharing: boolean
+          id: string
+          library_backup: boolean
+          max_children: number
+          max_pages: number
+          monthly_credits: number
+          photo_story: boolean
+          price_tl: number
+          print_ready: boolean
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          trial_months: number
+          unlimited_friend_sharing: boolean
+          unlimited_pages: boolean
+          unlimited_revision: boolean
+          unlimited_stories: boolean
+          weekly_themes: boolean
+        }
+        Insert: {
+          advanced_personalization?: boolean
+          advanced_stats?: boolean
+          audio_story?: boolean
+          basic_personalization?: boolean
+          basic_stats?: boolean
+          cover_design_selection?: boolean
+          custom_illustration?: boolean
+          detailed_stats?: boolean
+          family_sharing?: boolean
+          favorite_pages?: boolean
+          font_selection?: boolean
+          friend_sharing?: boolean
+          id?: string
+          library_backup?: boolean
+          max_children: number
+          max_pages: number
+          monthly_credits: number
+          photo_story?: boolean
+          price_tl: number
+          print_ready?: boolean
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          trial_months?: number
+          unlimited_friend_sharing?: boolean
+          unlimited_pages?: boolean
+          unlimited_revision?: boolean
+          unlimited_stories?: boolean
+          weekly_themes?: boolean
+        }
+        Update: {
+          advanced_personalization?: boolean
+          advanced_stats?: boolean
+          audio_story?: boolean
+          basic_personalization?: boolean
+          basic_stats?: boolean
+          cover_design_selection?: boolean
+          custom_illustration?: boolean
+          detailed_stats?: boolean
+          family_sharing?: boolean
+          favorite_pages?: boolean
+          font_selection?: boolean
+          friend_sharing?: boolean
+          id?: string
+          library_backup?: boolean
+          max_children?: number
+          max_pages?: number
+          monthly_credits?: number
+          photo_story?: boolean
+          price_tl?: number
+          print_ready?: boolean
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          trial_months?: number
+          unlimited_friend_sharing?: boolean
+          unlimited_pages?: boolean
+          unlimited_revision?: boolean
+          unlimited_stories?: boolean
+          weekly_themes?: boolean
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          max_children: number
+          max_pages: number
+          monthly_credits: number
+          price_tl: number
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          trial_ends_at: string | null
+          updated_at: string
+          used_credits: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          max_children?: number
+          max_pages?: number
+          monthly_credits?: number
+          price_tl?: number
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          trial_ends_at?: string | null
+          updated_at?: string
+          used_credits?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          max_children?: number
+          max_pages?: number
+          monthly_credits?: number
+          price_tl?: number
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          trial_ends_at?: string | null
+          updated_at?: string
+          used_credits?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       child_reading_stats: {
@@ -543,10 +702,29 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      can_create_story: { Args: { _user_id: string }; Returns: boolean }
+      get_remaining_credits: { Args: { _user_id: string }; Returns: number }
+      get_user_tier: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["subscription_tier"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      use_story_credit: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      subscription_tier:
+        | "minik_masal"
+        | "masal_kesfifcisi"
+        | "masal_kahramani"
+        | "sonsuz_masal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -673,6 +851,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      subscription_tier: [
+        "minik_masal",
+        "masal_kesfifcisi",
+        "masal_kahramani",
+        "sonsuz_masal",
+      ],
+    },
   },
 } as const

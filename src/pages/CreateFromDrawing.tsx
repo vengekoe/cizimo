@@ -4,6 +4,7 @@ import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
 import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { NoCreditsPrompt, UpgradePrompt } from "@/components/subscription/UpgradePrompt";
+import { CreditDisplay } from "@/components/subscription/CreditDisplay";
 
 const CreateFromDrawing = () => {
   const { loading, progress, generateBookFromDrawing } = useBooks();
@@ -22,6 +25,7 @@ const CreateFromDrawing = () => {
   const { children, getSelectedChild } = useChildren();
   const { createTask } = useBackgroundTasks();
   const { user } = useAuth();
+  const { canCreateStory, hasFeature, useCredit, getMaxPages, remainingCredits } = useSubscription();
   const navigate = useNavigate();
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -35,6 +39,9 @@ const CreateFromDrawing = () => {
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
   const [category, setCategory] = useState<string>("other");
+
+  // Check if user has photo_story feature
+  const hasPhotoStoryFeature = hasFeature("photo_story");
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -260,7 +267,21 @@ const CreateFromDrawing = () => {
           </div>
         </div>
 
-        <StoryChildSelector className="mb-4" />
+        <CreditDisplay />
+
+        {!hasPhotoStoryFeature && (
+          <div className="mt-4">
+            <UpgradePrompt feature="Fotoğraftan/Çizimden Hikaye" requiredTier="🦄 Masal Kahramanı" />
+          </div>
+        )}
+
+        {hasPhotoStoryFeature && !canCreateStory && remainingCredits === 0 && (
+          <div className="mt-4">
+            <NoCreditsPrompt />
+          </div>
+        )}
+
+        <StoryChildSelector className="mt-4 mb-4" />
         
         <StorySettings
           language={language}
