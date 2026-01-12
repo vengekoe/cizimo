@@ -38,6 +38,11 @@ const storySchema = z.object({
   pages: z.array(storyPageSchema).min(5).max(20),
 });
 
+// Helper: wait
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,9 +50,9 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { imageBase64, language, pageCount, model, userDescription } = requestSchema.parse(body);
-    
-    console.log(`Analyzing drawing with ${model}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}`);
+    const { imageBase64, language, pageCount, model: requestedModel, userDescription } = requestSchema.parse(body);
+
+    console.log(`Analyzing drawing with ${requestedModel}: lang=${language}, pages=${pageCount}, hasUserDescription=${!!userDescription}`);
 
     // Base64 string'den data URL prefix'ini çıkar
     const base64Parts = imageBase64.match(/^data:image\/(\w+);base64,(.+)$/);
@@ -57,8 +62,8 @@ serve(async (req) => {
     const mimeType = `image/${base64Parts[1]}`;
     const base64Data = base64Parts[2];
 
-    // Step 1: Analyze the drawing
-    const userHint = userDescription 
+    // User hint for analysis
+    const userHint = userDescription
       ? `\n\nKullanıcının çizim hakkındaki açıklaması: "${userDescription}"\nBu açıklamayı analiz sırasında mutlaka dikkate al ve hikayenin temasına yansıt.`
       : "";
 
@@ -83,79 +88,110 @@ JSON formatında dön:
   "title": "Hikaye başlığı"
 }`;
 
-    let analysisResponse: Response;
+    // Model list with fallback order
+    const modelList: Array<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview"> =
+      requestedModel === "gpt-5-mini" || requestedModel === "gpt-5.1-mini-preview"
+        ? [requestedModel]
+        : ["gemini-3-pro-preview", "gpt-5-mini"]; // Gemini first, then GPT-5 Mini as fallback
 
-    if (model === "gpt-5-mini" || model === "gpt-5.1-mini-preview") {
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-      if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    let analysisResponse: Response | null = null;
+    let usedModel: string = requestedModel;
 
-      const openaiModel = model === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
+    // Step 1: Analyze the drawing (with fallback)
+    for (const modelToTry of modelList) {
+      console.log(`Trying model ${modelToTry} for analysis...`);
+      if (modelToTry === "gpt-5-mini" || modelToTry === "gpt-5.1-mini-preview") {
+        const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+        if (!OPENAI_API_KEY) {
+          console.error("OPENAI_API_KEY not configured, skipping OpenAI model");
+          continue;
+        }
 
-      analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: openaiModel,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: analysisPrompt },
+        const openaiModel = modelToTry === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
+
+        analysisResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: openaiModel,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: analysisPrompt },
+                  { type: "image_url", image_url: { url: imageBase64 } },
+                ],
+              },
+            ],
+            max_completion_tokens: 2048,
+          }),
+        });
+      } else {
+        // Gemini
+        const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+        if (!GOOGLE_AI_API_KEY) {
+          console.error("GOOGLE_AI_API_KEY not configured, skipping Gemini model");
+          continue;
+        }
+
+        analysisResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
                 {
-                  type: "image_url",
-                  image_url: { url: imageBase64 }
-                }
-              ]
-            }
-          ],
-          max_completion_tokens: 2048,
-        })
-      });
-    } else {
-      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-      if (!GOOGLE_AI_API_KEY) throw new Error("GOOGLE_AI_API_KEY is not configured");
-
-      analysisResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: analysisPrompt },
-              { inlineData: { mimeType, data: base64Data } }
-            ]
-          }],
-          generationConfig: { responseMimeType: "application/json" }
-        }),
-      });
-    }
-
-    if (!analysisResponse.ok) {
-      const errorText = await analysisResponse.text();
-      console.error(`${model} analysis error:`, analysisResponse.status, errorText);
-      
-      if (analysisResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "RATE_LIMIT" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                  parts: [
+                    { text: analysisPrompt },
+                    { inlineData: { mimeType, data: base64Data } },
+                  ],
+                },
+              ],
+              generationConfig: { responseMimeType: "application/json" },
+            }),
+          }
         );
       }
+
+      if (analysisResponse.ok) {
+        usedModel = modelToTry;
+        break;
+      }
+
+      const errorText = await analysisResponse.text();
+      console.error(`${modelToTry} analysis error:`, analysisResponse.status, errorText);
+
+      // If rate limit or quota, try next model
+      if (analysisResponse.status === 429 || errorText.includes("RESOURCE_EXHAUSTED") || errorText.includes("quota")) {
+        console.log(`${modelToTry} rate limited, trying fallback...`);
+        await delay(1000);
+        continue;
+      }
+
+      // For payment required, bubble up immediately
       if (analysisResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "PAYMENT_REQUIRED" }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`Analysis failed: ${analysisResponse.status}`);
+    }
+
+    if (!analysisResponse || !analysisResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: "RATE_LIMIT", message: "All models rate limited. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const analysisData = await analysisResponse.json();
     let analysisText: string;
 
-    if (model === "gpt-5-mini") {
+    if (usedModel === "gpt-5-mini" || usedModel === "gpt-5.1-mini-preview") {
       analysisText = analysisData?.choices?.[0]?.message?.content;
     } else {
       analysisText = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -178,14 +214,14 @@ JSON formatında dön:
       }
     }
 
-    console.log("Drawing analyzed successfully");
+    console.log(`Drawing analyzed successfully with ${usedModel}`);
 
-    // Step 2: Generate story based on analysis
+    // Step 2: Generate story based on analysis (with fallback)
     const storyPrompt = `Bu çizim analizine dayanarak ${pageCount} sayfalık tutarlı bir çocuk hikayesi oluştur (${language === "tr" ? "TÜRKÇE" : "ENGLISH"}):
 
 Çizim Analizi:
-- Renkler: ${analysis.colors.join(', ')}
-- Karakterler: ${analysis.characters.map((c: any) => c.name).join(', ')}
+- Renkler: ${analysis.colors.join(", ")}
+- Karakterler: ${analysis.characters.map((c: any) => c.name).join(", ")}
 - Tema: ${analysis.theme}
 - Duygu: ${analysis.mood}
 - Başlık: ${analysis.title}
@@ -211,71 +247,88 @@ JSON FORMATINDA:
   ]
 }`;
 
-    let storyResponse: Response;
+    let storyResponse: Response | null = null;
+    let storyModel: string = usedModel;
 
-    if (model === "gpt-5-mini" || model === "gpt-5.1-mini-preview") {
-      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-      if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    // Use same model list for story generation
+    const storyModelList: Array<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview"> =
+      usedModel === "gpt-5-mini" || usedModel === "gpt-5.1-mini-preview"
+        ? [usedModel as "gpt-5-mini" | "gpt-5.1-mini-preview"]
+        : ["gemini-3-pro-preview", "gpt-5-mini"];
 
-      const openaiModel = model === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
-      
-      storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: openaiModel,
-          messages: [
-            {
-              role: "system",
-              content: "You are a creative children's story writer. Generate stories in valid JSON format only."
-            },
-            {
-              role: "user",
-              content: storyPrompt
-            }
-          ],
-          max_completion_tokens: 8192,
-        })
-      });
-    } else {
-      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    for (const modelToTry of storyModelList) {
+      console.log(`Trying model ${modelToTry} for story generation...`);
+      if (modelToTry === "gpt-5-mini" || modelToTry === "gpt-5.1-mini-preview") {
+        const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+        if (!OPENAI_API_KEY) continue;
 
-      storyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: storyPrompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        }),
-      });
-    }
+        const openaiModel = modelToTry === "gpt-5.1-mini-preview" ? "gpt-5.1-mini-preview-2025-12-17" : "gpt-5-mini-2025-08-07";
 
-    if (!storyResponse.ok) {
-      const errorText = await storyResponse.text();
-      console.error(`${model} story error:`, storyResponse.status, errorText);
-      
-      if (storyResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "RATE_LIMIT" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        storyResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: openaiModel,
+            messages: [
+              { role: "system", content: "You are a creative children's story writer. Generate stories in valid JSON format only." },
+              { role: "user", content: storyPrompt },
+            ],
+            max_completion_tokens: 8192,
+          }),
+        });
+      } else {
+        const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+        if (!GOOGLE_AI_API_KEY) continue;
+
+        storyResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: storyPrompt }] }],
+              generationConfig: { responseMimeType: "application/json" },
+            }),
+          }
         );
       }
+
+      if (storyResponse.ok) {
+        storyModel = modelToTry;
+        break;
+      }
+
+      const errorText = await storyResponse.text();
+      console.error(`${modelToTry} story error:`, storyResponse.status, errorText);
+
+      if (storyResponse.status === 429 || errorText.includes("RESOURCE_EXHAUSTED") || errorText.includes("quota")) {
+        console.log(`${modelToTry} story rate limited, trying fallback...`);
+        await delay(1000);
+        continue;
+      }
+
       if (storyResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "PAYMENT_REQUIRED" }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`Story generation failed: ${storyResponse.status}`);
+    }
+
+    if (!storyResponse || !storyResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: "RATE_LIMIT", message: "All models rate limited for story generation." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const storyData = await storyResponse.json();
     let storyText: string;
 
-    if (model === "gpt-5-mini") {
+    if (storyModel === "gpt-5-mini" || storyModel === "gpt-5.1-mini-preview") {
       storyText = storyData?.choices?.[0]?.message?.content;
     } else {
       storyText = storyData.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -299,12 +352,12 @@ JSON FORMATINDA:
     }
 
     const validated = storySchema.parse(story);
-    console.log("Story generated and validated successfully");
+    console.log(`Story generated and validated successfully with ${storyModel}`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         story: validated,
-        analysis 
+        analysis,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -313,17 +366,17 @@ JSON FORMATINDA:
 
     if (error instanceof z.ZodError) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "Validation error",
-          details: error.errors 
+          details: error.errors,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
