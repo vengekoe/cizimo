@@ -153,9 +153,9 @@ serve(async (req) => {
 
     console.log(`Generating ${pages.length} images using ${imageModel}`);
 
-    const MAX_RETRIES = 3;
-    const BASE_DELAY = 2000;
-    const MAX_DELAY = 30000;
+    const MAX_RETRIES = 2; // Reduced from 3 to avoid timeout
+    const BASE_DELAY = 1000; // Reduced from 2000
+    const MAX_DELAY = 5000; // Reduced from 30000
     
     const results: PageResult[] = [];
 
@@ -164,8 +164,8 @@ serve(async (req) => {
     }
 
     function getBackoffDelay(attempt: number): number {
-      const exponentialDelay = BASE_DELAY * Math.pow(2, attempt - 1);
-      const jitter = Math.random() * 1000;
+      const exponentialDelay = BASE_DELAY * Math.pow(1.5, attempt - 1); // Less aggressive backoff
+      const jitter = Math.random() * 500;
       return Math.min(exponentialDelay + jitter, MAX_DELAY);
     }
 
@@ -509,9 +509,9 @@ Landscape orientation, filling the entire frame edge-to-edge with no borders.`;
       const result = await generateImageWithRetry(prompt, index);
       results.push(result);
       
-      // Delay between requests to avoid rate limiting
+      // Reduced delay between requests (was 2000ms)
       if (index < pages.length - 1) {
-        await delay(2000);
+        await delay(1000);
       }
     }
 
