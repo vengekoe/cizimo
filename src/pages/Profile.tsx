@@ -100,7 +100,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-primary/5">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <User className="w-6 h-6 text-primary" />
@@ -108,16 +108,16 @@ const Profile = () => {
             </h1>
             <SubscriptionBadge />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
-                <Shield className="w-4 h-4 mr-2" />
-                Admin
+                <Shield className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Admin</span>
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Çıkış
+              <LogOut className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Çıkış</span>
             </Button>
           </div>
         </div>
