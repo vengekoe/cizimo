@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { BookOpen, Plus, User, Paintbrush, Palette, Sparkles, Menu, X, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -130,12 +130,14 @@ const BottomNavigation = () => {
             ))}
             {isAdmin && (
               <Button
+                asChild
                 variant={location.pathname === "/admin" ? "default" : "ghost"}
-                onClick={() => navigate("/admin")}
                 className="gap-2"
               >
-                <Shield className="w-5 h-5" />
-                <span>Admin</span>
+                <Link to="/admin">
+                  <Shield className="w-5 h-5" />
+                  <span>Admin</span>
+                </Link>
               </Button>
             )}
           </div>
@@ -172,6 +174,27 @@ const BottomNavigation = () => {
               <span className="text-[10px] font-medium">{item.label}</span>
             </button>
           ))}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 flex-1 py-2 px-1 rounded-lg transition-all",
+                location.pathname === "/admin"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div
+                className={cn(
+                  "p-1.5 rounded-full transition-all",
+                  location.pathname === "/admin" ? "bg-primary/10" : ""
+                )}
+              >
+                <Shield className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-medium">Admin</span>
+            </Link>
+          )}
         </div>
       </nav>
 
