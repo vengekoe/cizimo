@@ -103,7 +103,7 @@ export const useSubscription = () => {
   const currentFeatures = allFeatures?.find(f => f.tier === subscription?.tier);
 
   // Check if user is admin
-  const { data: isAdmin } = useQuery({
+  const { data: isAdmin, isLoading: isAdminLoading } = useQuery({
     queryKey: ["is_admin", user?.id],
     queryFn: async () => {
       if (!user?.id) return false;
@@ -208,6 +208,7 @@ export const useSubscription = () => {
     currentFeatures,
     allFeatures,
     isAdmin: isAdmin ?? false,
+    isAdminLoading,
     remainingCredits,
     isInTrial,
     canCreateStory,
