@@ -82,6 +82,16 @@ const BookReader = () => {
     }
   }, [isSharedBook, ownerChild, sharedNotificationShown]);
 
+  // End session when leaving page - must be before any conditional returns
+  useEffect(() => {
+    return () => {
+      if (sessionStartedRef.current) {
+        endReadingSession();
+      }
+    };
+  }, [endReadingSession]);
+
+  // Early return for loading/not found - AFTER all hooks
   if (!book) {
     if (hydrating) {
       return (
@@ -169,15 +179,6 @@ const BookReader = () => {
     }
     setShowFeedback(true);
   };
-
-  // End session when leaving page
-  useEffect(() => {
-    return () => {
-      if (sessionStartedRef.current) {
-        endReadingSession();
-      }
-    };
-  }, []);
 
   const handleRegenerateImages = async () => {
     if (!bookId || isRegenerating) return;
