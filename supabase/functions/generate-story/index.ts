@@ -20,6 +20,110 @@ const profileSchema = z.object({
   displayName: z.string().nullable().optional(),
 }).optional();
 
+// Copyrighted character names and brands that should be replaced with generic descriptions
+const COPYRIGHTED_CHARACTERS: { [key: string]: string } = {
+  // Marvel
+  'hulk': 'yeşil güçlü dev',
+  'iron man': 'zırhlı kahraman',
+  'ironman': 'zırhlı kahraman',
+  'spider-man': 'örümcek güçlü kahraman',
+  'spiderman': 'örümcek güçlü kahraman',
+  'örümcek adam': 'örümcek güçlü kahraman',
+  'thor': 'yıldırım tanrısı kahraman',
+  'captain america': 'kalkan taşıyan kahraman',
+  'kaptan amerika': 'kalkan taşıyan kahraman',
+  'black widow': 'casus kahraman',
+  'wolverine': 'pençeli kahraman',
+  'deadpool': 'maskeli kahraman',
+  'thanos': 'güçlü uzaylı',
+  'venom': 'siyah güçlü yaratık',
+  'loki': 'hileci sihirbaz',
+  
+  // DC
+  'batman': 'yarasa kostümlü kahraman',
+  'superman': 'uçan güçlü kahraman',
+  'wonder woman': 'amazon savaşçı prenses',
+  'flash': 'hızlı koşan kahraman',
+  'aquaman': 'deniz kralı kahraman',
+  'joker': 'şakacı kötü karakter',
+  'harley quinn': 'renkli kostümlü karakter',
+  'robin': 'genç kahraman yardımcısı',
+  'catwoman': 'kedi kostümlü kahraman',
+  
+  // Disney
+  'mickey mouse': 'sevimli fare',
+  'mickey': 'sevimli fare',
+  'minnie mouse': 'sevimli fare kız',
+  'minnie': 'sevimli fare kız',
+  'donald duck': 'komik ördek',
+  'goofy': 'sevimli köpek',
+  'pluto': 'sadık köpek',
+  'elsa': 'buz prensesi',
+  'anna': 'cesur prenses',
+  'frozen': 'buz krallığı',
+  'moana': 'cesur denizci kız',
+  'rapunzel': 'uzun saçlı prenses',
+  'ariel': 'deniz kızı prenses',
+  'simba': 'aslan yavrusu',
+  'mufasa': 'kral aslan',
+  'nemo': 'palyaço balığı',
+  'dory': 'mavi balık',
+  'buzz lightyear': 'uzay kahramanı',
+  'woody': 'kovboy oyuncak',
+  
+  // Other popular
+  'pokemon': 'cep canavarları',
+  'pikachu': 'elektrikli sarı yaratık',
+  'mario': 'atlayan kahraman',
+  'luigi': 'yeşil şapkalı kahraman',
+  'sonic': 'hızlı mavi kirpi',
+  'shrek': 'yeşil dev',
+  'peppa pig': 'sevimli domuz',
+  'paw patrol': 'kahraman köpekler',
+  'spongebob': 'deniz süngeri',
+  'dora': 'kaşif kız',
+  'barbie': 'güzel bebek',
+  'hello kitty': 'sevimli kedi',
+  'winnie the pooh': 'bal seven ayı',
+  'pooh': 'bal seven ayı',
+  'transformers': 'dönüşen robotlar',
+  'harry potter': 'sihirbaz çocuk',
+  'optimus prime': 'lider robot',
+  
+  // Turkish/International sports teams (as copyrighted brands)
+  'galatasaray': 'sarı-kırmızı takım',
+  'fenerbahçe': 'sarı-lacivert takım',
+  'beşiktaş': 'siyah-beyaz takım',
+  'trabzonspor': 'bordo-mavi takım',
+  'barcelona': 'mavi-kırmızı takım',
+  'real madrid': 'beyaz takım',
+};
+
+// Check if text contains copyrighted content and return sanitized version
+function sanitizeCopyrightedContent(text: string): { sanitized: string; hasCopyrighted: boolean; found: string[] } {
+  if (!text) return { sanitized: text, hasCopyrighted: false, found: [] };
+  
+  let sanitized = text.toLowerCase();
+  const found: string[] = [];
+  
+  for (const [copyrighted, replacement] of Object.entries(COPYRIGHTED_CHARACTERS)) {
+    const regex = new RegExp(`\\b${copyrighted}\\b`, 'gi');
+    if (regex.test(sanitized)) {
+      found.push(copyrighted);
+      sanitized = sanitized.replace(regex, replacement);
+    }
+  }
+  
+  // Restore original case for first letter of sentences
+  if (found.length > 0) {
+    sanitized = sanitized.charAt(0).toUpperCase() + sanitized.slice(1);
+  } else {
+    sanitized = text; // Return original if no changes
+  }
+  
+  return { sanitized, hasCopyrighted: found.length > 0, found };
+}
+
 const requestSchema = z.object({
   theme: z.string().min(1, "Theme cannot be empty").max(200, "Theme must be less than 200 characters"),
   language: z.enum(["tr", "en"]).default("tr"),
@@ -51,8 +155,10 @@ serve(async (req) => {
     
     console.log(`Generating story: theme=${theme}, lang=${language}, pages=${pageCount}, model=${model}, hasProfile=${!!profile}`);
 
-    // Build personalization context from profile
+    // Build personalization context from profile with copyright sanitization
     let personalizationContext = "";
+    const copyrightWarnings: string[] = [];
+    
     if (profile) {
       const parts: string[] = [];
       
@@ -71,25 +177,67 @@ serve(async (req) => {
       if (profile.favoriteAnimal) {
         parts.push(`Hikayede ${profile.favoriteAnimal} karakteri veya benzeri bir hayvan bulunsun`);
       }
+      
+      // Sanitize potentially copyrighted content
       if (profile.favoriteSuperhero) {
-        parts.push(`${profile.favoriteSuperhero} tarzı süper güçler veya kahramanlık temaları eklenebilir`);
+        const check = sanitizeCopyrightedContent(profile.favoriteSuperhero);
+        if (check.hasCopyrighted) {
+          copyrightWarnings.push(`Superhero: ${check.found.join(', ')} → ${check.sanitized}`);
+          parts.push(`${check.sanitized} tarzı süper güçler veya kahramanlık temaları eklenebilir (NOT: Orijinal karakter adlarını KULLANMA, genel tanımlamalar kullan)`);
+        } else {
+          parts.push(`${profile.favoriteSuperhero} tarzı süper güçler veya kahramanlık temaları eklenebilir`);
+        }
       }
       if (profile.favoriteCartoon) {
-        parts.push(`${profile.favoriteCartoon} çizgi filminin tarzından ilham alınabilir`);
+        const check = sanitizeCopyrightedContent(profile.favoriteCartoon);
+        if (check.hasCopyrighted) {
+          copyrightWarnings.push(`Cartoon: ${check.found.join(', ')} → ${check.sanitized}`);
+          parts.push(`${check.sanitized} tarzı çizgi filminden ilham alınabilir (NOT: Orijinal karakter adlarını KULLANMA, genel tanımlamalar kullan)`);
+        } else {
+          parts.push(`${profile.favoriteCartoon} çizgi filminin tarzından ilham alınabilir`);
+        }
       }
       if (profile.favoriteToy) {
-        parts.push(`Hikayede ${profile.favoriteToy} ile ilgili bir öğe olabilir`);
+        const check = sanitizeCopyrightedContent(profile.favoriteToy);
+        if (check.hasCopyrighted) {
+          copyrightWarnings.push(`Toy: ${check.found.join(', ')} → ${check.sanitized}`);
+          parts.push(`Hikayede ${check.sanitized} ile ilgili bir öğe olabilir`);
+        } else {
+          parts.push(`Hikayede ${profile.favoriteToy} ile ilgili bir öğe olabilir`);
+        }
       }
       if (profile.favoriteTeam) {
-        parts.push(`Takım ruhu ve ${profile.favoriteTeam} gibi birlikte çalışma temaları işlenebilir`);
+        const check = sanitizeCopyrightedContent(profile.favoriteTeam);
+        if (check.hasCopyrighted) {
+          copyrightWarnings.push(`Team: ${check.found.join(', ')} → ${check.sanitized}`);
+          parts.push(`Takım ruhu ve ${check.sanitized} gibi birlikte çalışma temaları işlenebilir`);
+        } else {
+          parts.push(`Takım ruhu ve ${profile.favoriteTeam} gibi birlikte çalışma temaları işlenebilir`);
+        }
       }
       
       if (parts.length > 0) {
         personalizationContext = `\n\nKİŞİSELLEŞTİRME (çocuğun tercihlerine göre hikayeyi uyarla):\n${parts.map((p, i) => `${i + 1}) ${p}`).join('\n')}`;
       }
     }
+    
+    if (copyrightWarnings.length > 0) {
+      console.log(`Copyright content sanitized: ${copyrightWarnings.join('; ')}`);
+    }
+    
+    // Sanitize theme as well
+    const themeCheck = sanitizeCopyrightedContent(theme);
+    const safeTheme = themeCheck.sanitized;
+    if (themeCheck.hasCopyrighted) {
+      console.log(`Theme sanitized: ${themeCheck.found.join(', ')} → ${safeTheme}`);
+    }
 
-    const prompt = `"${theme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+    const prompt = `"${safeTheme}" temalı ${pageCount} sayfalık BİR BÜTÜN OLARAK TUTARLI bir çocuk hikayesi oluştur:
+
+ÖNEMLİ TELİF HAKKI KURALI:
+- Hikayelerde Marvel, DC, Disney, Pokemon veya herhangi bir telif haklı karakter adı KULLANMA
+- Örneğin "Hulk" yerine "yeşil güçlü dev", "Superman" yerine "uçan kahraman" gibi genel tanımlamalar kullan
+- Çocuğun sevdiği karakterden SADECE ilham al, karakter adını hikayede KULLANMA
 
 KURALLAR:
 1) ${language === "tr" ? "HİKAYE TAMAMEN TÜRKÇE OLMALIDIR" : "STORY MUST BE ENTIRELY IN ENGLISH"}
