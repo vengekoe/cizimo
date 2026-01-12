@@ -52,7 +52,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/');
+      navigate('/home');
     }
   }, [user, loading, navigate]);
 
