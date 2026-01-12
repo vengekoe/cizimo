@@ -108,26 +108,59 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age: number | null
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          favorite_animal: string | null
+          favorite_cartoon: string | null
+          favorite_color: string | null
+          favorite_superhero: string | null
+          favorite_team: string | null
+          favorite_toy: string | null
+          gender: string | null
           id: string
+          preferred_ai_model: string | null
+          preferred_language: string | null
+          preferred_page_count: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          age?: number | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          favorite_animal?: string | null
+          favorite_cartoon?: string | null
+          favorite_color?: string | null
+          favorite_superhero?: string | null
+          favorite_team?: string | null
+          favorite_toy?: string | null
+          gender?: string | null
           id?: string
+          preferred_ai_model?: string | null
+          preferred_language?: string | null
+          preferred_page_count?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          age?: number | null
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          favorite_animal?: string | null
+          favorite_cartoon?: string | null
+          favorite_color?: string | null
+          favorite_superhero?: string | null
+          favorite_team?: string | null
+          favorite_toy?: string | null
+          gender?: string | null
           id?: string
+          preferred_ai_model?: string | null
+          preferred_language?: string | null
+          preferred_page_count?: number | null
           updated_at?: string
           user_id?: string
         }

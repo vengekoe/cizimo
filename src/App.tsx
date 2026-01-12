@@ -7,6 +7,10 @@ import Home from "./pages/Home";
 import BookReader from "./pages/BookReader";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
+import CreateFromDrawing from "./pages/CreateFromDrawing";
+import CreateFromTheme from "./pages/CreateFromTheme";
+import CreateCustom from "./pages/CreateCustom";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +24,10 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/book/:bookId" element={<BookReader />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/create/drawing" element={<CreateFromDrawing />} />
+          <Route path="/create/theme" element={<CreateFromTheme />} />
+          <Route path="/create/custom" element={<CreateCustom />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
