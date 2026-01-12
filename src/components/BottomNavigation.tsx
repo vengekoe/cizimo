@@ -28,7 +28,7 @@ const BottomNavigation = () => {
       id: "books",
       label: "Kitaplarım",
       icon: <BookOpen className="w-5 h-5" />,
-      path: "/",
+      path: "/home",
     },
     {
       id: "create",
@@ -85,8 +85,8 @@ const BottomNavigation = () => {
   };
 
   const isActive = (item: NavItem) => {
-    if (item.path === "/") {
-      return location.pathname === "/";
+    if (item.path === "/home") {
+      return location.pathname === "/home";
     }
     return item.path ? location.pathname.startsWith(item.path) : false;
   };

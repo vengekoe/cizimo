@@ -286,4 +286,46 @@ All colors MUST be HSL.
       opacity: 0;
     }
   }
+  
+  @keyframes bounce-slow {
+    0%, 100% { 
+      transform: translateY(0);
+    }
+    50% { 
+      transform: translateY(-15px);
+    }
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+  
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+  
+  .delay-500 {
+    animation-delay: 0.5s;
+  }
+  
+  .delay-700 {
+    animation-delay: 0.7s;
+  }
+  
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0) rotate(0deg);
+    }
+    50% { 
+      transform: translateY(-10px) rotate(5deg);
+    }
+  }
+  
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+  
+  .perspective-1000 {
+    perspective: 1000px;
+  }
 }
