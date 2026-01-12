@@ -79,6 +79,7 @@ export const useBooks = () => {
                 isFavorite: bookData.is_favorite || false,
                 lastReadAt: bookData.last_read_at || undefined,
                 childId: (bookData as any).child_id || undefined,
+                category: (bookData as any).category || "other",
                 pages: pagesData.map(page => ({
                 character: page.character,
                 emoji: page.emoji,
@@ -140,6 +141,7 @@ export const useBooks = () => {
             is_favorite: book.isFavorite || false,
             last_read_at: book.lastReadAt,
             child_id: book.childId,
+            category: book.category || "other",
           });
 
         if (bookError) {
@@ -207,6 +209,7 @@ export const useBooks = () => {
             is_favorite: book.isFavorite || false,
             last_read_at: book.lastReadAt,
             child_id: book.childId,
+            category: book.category || "other",
           }, {
             onConflict: 'id'
           });
@@ -646,7 +649,8 @@ export const useBooks = () => {
     language: "tr" | "en" = "tr", 
     pageCount: number = 10, 
     model: "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview" = "gemini-3-pro-preview",
-    profileData?: ProfileForStory
+    profileData?: ProfileForStory,
+    category?: string
   ): Promise<Book | null> => {
     setLoading(true);
     setProgress({ stage: 'story', percentage: 10, message: 'Hikaye oluşturuluyor...' });
@@ -774,6 +778,7 @@ export const useBooks = () => {
         coverImage: coverImageUrl || undefined,
         childId: profileData?.childId,
         childName: profileData?.childName,
+        category: category || "other",
         pages,
       };
 

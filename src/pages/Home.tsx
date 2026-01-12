@@ -4,8 +4,9 @@ import { useBooks } from "@/hooks/useBooks";
 import { useAuth } from "@/hooks/useAuth";
 import { useChildren } from "@/hooks/useChildren";
 import { useBookShares } from "@/hooks/useBookShares";
+import { useBookCategories } from "@/hooks/useBookCategories";
 import { Button } from "@/components/ui/button";
-import { Trash2, Star, Clock, Paintbrush, Baby, Share2 } from "lucide-react";
+import { Trash2, Star, Clock, Paintbrush, Baby, Share2, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,15 +23,18 @@ import { tr } from "date-fns/locale";
 import BottomNavigation from "@/components/BottomNavigation";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import { BookShareDialog } from "@/components/BookShareDialog";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const Home = () => {
   const { books, loading, progress, deleteBook, toggleFavorite } = useBooks();
   const { user, loading: authLoading } = useAuth();
   const { children, selectedChildId, setSelectedChildId } = useChildren();
   const { getSharedBooksForChild } = useBookShares();
+  const { categories, getCategoryById, getCategoryColor } = useBookCategories();
   const navigate = useNavigate();
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"favorites" | "recent">("favorites");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [shareDialogBook, setShareDialogBook] = useState<{ id: string; title: string; childId?: string } | null>(null);
 
   useEffect(() => {
@@ -42,10 +46,20 @@ const Home = () => {
   // Get shared book IDs for selected child
   const sharedBookIds = selectedChildId ? getSharedBooksForChild(selectedChildId) : [];
 
-  // Filter books by selected child (owned or shared)
-  const filteredBooks = selectedChildId 
-    ? books.filter(book => book.childId === selectedChildId || sharedBookIds.includes(book.id))
-    : books;
+  // Filter books by selected child (owned or shared) and category
+  const filteredBooks = books.filter(book => {
+    // Child filter
+    const childMatch = selectedChildId 
+      ? book.childId === selectedChildId || sharedBookIds.includes(book.id)
+      : true;
+    
+    // Category filter
+    const categoryMatch = selectedCategory 
+      ? (book.category || "other") === selectedCategory
+      : true;
+    
+    return childMatch && categoryMatch;
+  });
 
   const sortedBooks = [...filteredBooks].sort((a, b) => {
     if (sortBy === "favorites") {
@@ -58,6 +72,14 @@ const Home = () => {
       return bDate - aDate;
     }
   });
+
+  // Get category counts for badges
+  const getCategoryCount = (categoryId: string) => {
+    const childFilteredBooks = selectedChildId 
+      ? books.filter(book => book.childId === selectedChildId || sharedBookIds.includes(book.id))
+      : books;
+    return childFilteredBooks.filter(book => (book.category || "other") === categoryId).length;
+  };
 
   const handleDeleteBook = (bookId: string) => {
     if (deleteBook) {
@@ -107,6 +129,48 @@ const Home = () => {
             </div>
           </div>
         )}
+
+        {/* Kategori Filtresi */}
+        <div className="mb-4">
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 pb-2">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${
+                  selectedCategory === null
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                }`}
+              >
+                📚 Tümü
+              </button>
+              {categories.map((cat) => {
+                const count = getCategoryCount(cat.id);
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0 ${
+                      selectedCategory === cat.id
+                        ? `bg-gradient-to-r ${getCategoryColor(cat.id)} text-white`
+                        : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                    }`}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.name}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      selectedCategory === cat.id ? "bg-white/20" : "bg-background"
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
 
         {/* Sıralama */}
         <div className="flex items-center justify-between mb-4">
@@ -176,6 +240,16 @@ const Home = () => {
                     </h3>
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{book.theme}</p>
                     <div className="flex items-center gap-2 text-xs flex-wrap">
+                      {/* Category badge */}
+                      {(() => {
+                        const cat = getCategoryById(book.category);
+                        return cat ? (
+                          <span className={`bg-gradient-to-r ${getCategoryColor(book.category)} text-white px-2 py-0.5 rounded-full flex items-center gap-1`}>
+                            <span>{cat.emoji}</span>
+                            <span>{cat.name}</span>
+                          </span>
+                        ) : null;
+                      })()}
                       <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                         {book.pages.length} sayfa
                       </span>
