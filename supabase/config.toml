@@ -2,3 +2,15 @@ project_id = "paprtumfuertfxnwdfjg"
 
 [functions.text-to-speech]
 verify_jwt = false
+
+[functions.process-background-task]
+verify_jwt = false
+
+[functions.generate-story-from-drawing]
+verify_jwt = false
+
+[functions.generate-book-images]
+verify_jwt = false
+
+[functions.generate-story]
+verify_jwt = false

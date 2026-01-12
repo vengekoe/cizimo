@@ -83,6 +83,63 @@ export type Database = {
           },
         ]
       }
+      book_generation_tasks: {
+        Row: {
+          book_id: string | null
+          child_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_data: Json
+          progress_message: string | null
+          progress_percent: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id?: string | null
+          child_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data: Json
+          progress_message?: string | null
+          progress_percent?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string | null
+          child_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data?: Json
+          progress_message?: string | null
+          progress_percent?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_generation_tasks_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "book_generation_tasks_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_likes: {
         Row: {
           book_id: string
