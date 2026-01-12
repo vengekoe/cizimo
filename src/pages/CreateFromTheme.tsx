@@ -2,13 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
+import { useChildren } from "@/hooks/useChildren";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Baby } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
+import { Link } from "react-router-dom";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları" },
@@ -28,6 +30,7 @@ const themes = [
 const CreateFromTheme = () => {
   const { books, loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
+  const { children, selectedChildId, setSelectedChildId, getSelectedChild } = useChildren();
   const navigate = useNavigate();
   
   const [language, setLanguage] = useState<"tr" | "en">(
@@ -39,18 +42,27 @@ const CreateFromTheme = () => {
   );
 
   const handleSelectTheme = async (theme: string) => {
-    // Build profile data for personalization
-    const profileData = profile ? {
-      displayName: profile.display_name,
-      age: profile.age,
-      gender: profile.gender,
-      favoriteColor: profile.favorite_color,
-      favoriteAnimal: profile.favorite_animal,
-      favoriteTeam: profile.favorite_team,
-      favoriteToy: profile.favorite_toy,
-      favoriteSuperhero: profile.favorite_superhero,
-      favoriteCartoon: profile.favorite_cartoon,
-    } : undefined;
+    const selectedChild = getSelectedChild();
+    
+    if (!selectedChild) {
+      toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
+      return;
+    }
+    
+    // Build profile data from selected child
+    const profileData = {
+      childId: selectedChild.id,
+      childName: selectedChild.name,
+      displayName: selectedChild.name,
+      age: selectedChild.age,
+      gender: selectedChild.gender,
+      favoriteColor: selectedChild.favorite_color,
+      favoriteAnimal: selectedChild.favorite_animal,
+      favoriteTeam: selectedChild.favorite_team,
+      favoriteToy: selectedChild.favorite_toy,
+      favoriteSuperhero: selectedChild.favorite_superhero,
+      favoriteCartoon: selectedChild.favorite_cartoon,
+    };
     
     const book = await generateBook(theme, language, pageCount, aiModel, profileData);
     if (book) {
@@ -79,6 +91,45 @@ const CreateFromTheme = () => {
             </p>
           </div>
         </div>
+
+        {/* Çocuk Seçimi */}
+        {children.length === 0 ? (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Baby className="w-6 h-6 text-amber-600" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">Çocuk profili bulunamadı</p>
+                <p className="text-xs text-muted-foreground">Kişiselleştirilmiş hikayeler için çocuk ekleyin</p>
+              </div>
+              <Link to="/profile">
+                <Button size="sm" variant="outline">Ekle</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-card rounded-2xl p-4 border border-border mb-4">
+            <div className="flex items-center gap-3">
+              <Baby className="w-5 h-5 text-primary" />
+              <Label className="text-sm font-medium">Hikaye kimin için?</Label>
+            </div>
+            <Select value={selectedChildId || ""} onValueChange={setSelectedChildId}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Çocuk seçin" />
+              </SelectTrigger>
+              <SelectContent>
+                {children.map((child) => (
+                  <SelectItem key={child.id} value={child.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{child.avatar_emoji || "👶"}</span>
+                      <span>{child.name}</span>
+                      {child.age && <span className="text-muted-foreground text-xs">({child.age} yaş)</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Ayarlar */}
         <div className="bg-card rounded-2xl p-4 border border-border mb-6">
@@ -132,7 +183,7 @@ const CreateFromTheme = () => {
             <Button
               key={item.theme}
               onClick={() => handleSelectTheme(item.theme)}
-              disabled={loading || books.length >= 10}
+              disabled={loading || books.length >= 10 || children.length === 0}
               variant="outline"
               className="h-auto py-4 px-4 flex flex-col items-center gap-2 hover:bg-primary/10 transition-all rounded-2xl"
             >

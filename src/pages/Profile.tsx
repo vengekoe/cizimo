@@ -2,34 +2,33 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { useChildren } from "@/hooks/useChildren";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, User, Settings, Heart, LogOut, Save } from "lucide-react";
+import { Loader2, User, Settings, Baby, LogOut, Save, Plus } from "lucide-react";
 import BottomNavigation from "@/components/BottomNavigation";
+import { ChildCard } from "@/components/ChildCard";
 
 const Profile = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const { children, loading: childrenLoading, addChild, updateChild, deleteChild } = useChildren();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [addingChild, setAddingChild] = useState(false);
 
   // Form states
   const [displayName, setDisplayName] = useState("");
-  const [age, setAge] = useState<string>("");
-  const [gender, setGender] = useState<string>("");
-  const [favoriteColor, setFavoriteColor] = useState("");
-  const [favoriteAnimal, setFavoriteAnimal] = useState("");
-  const [favoriteTeam, setFavoriteTeam] = useState("");
-  const [favoriteToy, setFavoriteToy] = useState("");
-  const [favoriteSuperhero, setFavoriteSuperhero] = useState("");
-  const [favoriteCartoon, setFavoriteCartoon] = useState("");
   const [preferredModel, setPreferredModel] = useState("gemini-3-pro-preview");
   const [preferredLanguage, setPreferredLanguage] = useState("tr");
   const [preferredPageCount, setPreferredPageCount] = useState("10");
+
+  // New child form
+  const [newChildName, setNewChildName] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -40,14 +39,6 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || "");
-      setAge(profile.age?.toString() || "");
-      setGender(profile.gender || "");
-      setFavoriteColor(profile.favorite_color || "");
-      setFavoriteAnimal(profile.favorite_animal || "");
-      setFavoriteTeam(profile.favorite_team || "");
-      setFavoriteToy(profile.favorite_toy || "");
-      setFavoriteSuperhero(profile.favorite_superhero || "");
-      setFavoriteCartoon(profile.favorite_cartoon || "");
       setPreferredModel(profile.preferred_ai_model || "gemini-3-pro-preview");
       setPreferredLanguage(profile.preferred_language || "tr");
       setPreferredPageCount(profile.preferred_page_count?.toString() || "10");
@@ -58,19 +49,20 @@ const Profile = () => {
     setSaving(true);
     await updateProfile({
       display_name: displayName || null,
-      age: age ? parseInt(age) : null,
-      gender: gender || null,
-      favorite_color: favoriteColor || null,
-      favorite_animal: favoriteAnimal || null,
-      favorite_team: favoriteTeam || null,
-      favorite_toy: favoriteToy || null,
-      favorite_superhero: favoriteSuperhero || null,
-      favorite_cartoon: favoriteCartoon || null,
       preferred_ai_model: preferredModel,
       preferred_language: preferredLanguage,
       preferred_page_count: parseInt(preferredPageCount),
     });
     setSaving(false);
+  };
+
+  const handleAddChild = async () => {
+    if (!newChildName.trim()) return;
+    
+    setAddingChild(true);
+    await addChild({ name: newChildName.trim() });
+    setNewChildName("");
+    setAddingChild(false);
   };
 
   if (authLoading || profileLoading) {
@@ -95,15 +87,15 @@ const Profile = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-4">
+        <Tabs defaultValue="children" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="children" className="flex items-center gap-1 text-xs sm:text-sm">
+              <Baby className="w-4 h-4" />
+              <span className="hidden sm:inline">Çocuklar</span>
+            </TabsTrigger>
             <TabsTrigger value="profile" className="flex items-center gap-1 text-xs sm:text-sm">
               <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Bilgiler</span>
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex items-center gap-1 text-xs sm:text-sm">
-              <Heart className="w-4 h-4" />
-              <span className="hidden sm:inline">Favoriler</span>
+              <span className="hidden sm:inline">Hesap</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-1 text-xs sm:text-sm">
               <Settings className="w-4 h-4" />
@@ -111,12 +103,71 @@ const Profile = () => {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="children">
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Baby className="w-5 h-5" />
+                  Çocuklarım
+                </CardTitle>
+                <CardDescription>
+                  Her çocuk için ayrı profil ve kişiselleştirilmiş hikayeler oluşturun
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    value={newChildName}
+                    onChange={(e) => setNewChildName(e.target.value)}
+                    placeholder="Çocuğun adı..."
+                    onKeyDown={(e) => e.key === "Enter" && handleAddChild()}
+                  />
+                  <Button onClick={handleAddChild} disabled={addingChild || !newChildName.trim()}>
+                    {addingChild ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Ekle
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {childrenLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : children.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <Baby className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Henüz çocuk eklenmedi</p>
+                  <p className="text-sm">Yukarıdan çocuk ekleyerek başlayın</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {children.map((child) => (
+                  <ChildCard
+                    key={child.id}
+                    child={child}
+                    onUpdate={updateChild}
+                    onDelete={deleteChild}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="profile">
             <Card>
               <CardHeader>
-                <CardTitle>Kullanıcı Bilgileri</CardTitle>
+                <CardTitle>Hesap Bilgileri</CardTitle>
                 <CardDescription>
-                  Profilinizi kişiselleştirin
+                  Kendi profilinizi düzenleyin
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -132,106 +183,6 @@ const Profile = () => {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="İsminizi girin"
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Yaş</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      placeholder="Yaş"
-                      min="1"
-                      max="120"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Cinsiyet</Label>
-                    <Select value={gender} onValueChange={setGender}>
-                      <SelectTrigger id="gender">
-                        <SelectValue placeholder="Seçin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Erkek</SelectItem>
-                        <SelectItem value="female">Kız</SelectItem>
-                        <SelectItem value="other">Diğer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="preferences">
-            <Card>
-              <CardHeader>
-                <CardTitle>Favoriler</CardTitle>
-                <CardDescription>
-                  Çocuğunuzun favorilerini ekleyin, hikayeler buna göre kişiselleştirilsin
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteColor">🎨 En Sevdiği Renk</Label>
-                    <Input
-                      id="favoriteColor"
-                      value={favoriteColor}
-                      onChange={(e) => setFavoriteColor(e.target.value)}
-                      placeholder="Mavi, Kırmızı..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteAnimal">🐾 En Sevdiği Hayvan</Label>
-                    <Input
-                      id="favoriteAnimal"
-                      value={favoriteAnimal}
-                      onChange={(e) => setFavoriteAnimal(e.target.value)}
-                      placeholder="Kedi, Köpek..."
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteTeam">⚽ En Sevdiği Takım</Label>
-                    <Input
-                      id="favoriteTeam"
-                      value={favoriteTeam}
-                      onChange={(e) => setFavoriteTeam(e.target.value)}
-                      placeholder="Fenerbahçe, Galatasaray..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteToy">🧸 En Sevdiği Oyuncak</Label>
-                    <Input
-                      id="favoriteToy"
-                      value={favoriteToy}
-                      onChange={(e) => setFavoriteToy(e.target.value)}
-                      placeholder="Lego, Bebek..."
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteSuperhero">🦸 En Sevdiği Süper Kahraman</Label>
-                    <Input
-                      id="favoriteSuperhero"
-                      value={favoriteSuperhero}
-                      onChange={(e) => setFavoriteSuperhero(e.target.value)}
-                      placeholder="Batman, Spiderman..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="favoriteCartoon">📺 En Sevdiği Çizgi Film</Label>
-                    <Input
-                      id="favoriteCartoon"
-                      value={favoriteCartoon}
-                      onChange={(e) => setFavoriteCartoon(e.target.value)}
-                      placeholder="Rafadan Tayfa, Peppa Pig..."
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
