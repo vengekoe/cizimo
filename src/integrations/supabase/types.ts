@@ -64,6 +64,45 @@ export type Database = {
           },
         ]
       }
+      book_shares: {
+        Row: {
+          book_id: string
+          child_id: string
+          created_at: string
+          id: string
+          shared_by: string
+        }
+        Insert: {
+          book_id: string
+          child_id: string
+          created_at?: string
+          id?: string
+          shared_by: string
+        }
+        Update: {
+          book_id?: string
+          child_id?: string
+          created_at?: string
+          id?: string
+          shared_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_shares_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "child_reading_stats"
+            referencedColumns: ["child_id"]
+          },
+          {
+            foreignKeyName: "book_shares_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           child_id: string | null
