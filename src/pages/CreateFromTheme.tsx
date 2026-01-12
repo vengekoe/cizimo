@@ -6,7 +6,7 @@ import { useChildren } from "@/hooks/useChildren";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
@@ -15,14 +15,7 @@ import { StorySettings } from "@/components/story/StorySettings";
 import { BackgroundGenerateButton } from "@/components/story/BackgroundGenerateButton";
 import { NoCreditsPrompt } from "@/components/subscription/UpgradePrompt";
 import { CreditDisplay } from "@/components/subscription/CreditDisplay";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const themes = [
   { emoji: "🌊", title: "Deniz Macerası", theme: "Denizaltı dünyası ve deniz canlıları", category: "adventure" },
@@ -40,7 +33,7 @@ const themes = [
 ];
 
 const CreateFromTheme = () => {
-  const { books, loading, progress, generateBook } = useBooks();
+  const { loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
   const { children, getSelectedChild } = useChildren();
   const { user } = useAuth();
@@ -51,17 +44,41 @@ const CreateFromTheme = () => {
     (profile?.preferred_language as "tr" | "en") || "tr"
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
-  const [category, setCategory] = useState<string>("adventure");
   
-  // Dialog state for background option
-  const [showDialog, setShowDialog] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState<{ theme: string; category: string } | null>(null);
+  // Selected theme state
+  const [selectedTheme, setSelectedTheme] = useState<typeof themes[0] | null>(null);
 
-  const getProfileData = () => {
+  const handleThemeSelect = (theme: typeof themes[0]) => {
+    setSelectedTheme(theme);
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedTheme) {
+      toast.error("Lütfen bir tema seçin");
+      return;
+    }
+
     const selectedChild = getSelectedChild();
-    if (!selectedChild) return null;
+    if (!selectedChild) {
+      toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
+      return;
+    }
+
+    if (!canCreateStory) {
+      toast.error("Hikaye krediniz kalmadı. Lütfen paketinizi yükseltin.");
+      return;
+    }
     
-    return {
+    // Adjust page count based on subscription
+    const adjustedPageCount = getMaxPages(pageCount);
+    if (adjustedPageCount !== pageCount) {
+      toast.info(`Sayfa sayısı paketinize göre ${adjustedPageCount}'e ayarlandı.`);
+    }
+    
+    const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+    const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
+    
+    const profileData = {
       childId: selectedChild.id,
       childName: selectedChild.name,
       displayName: selectedChild.name,
@@ -74,47 +91,9 @@ const CreateFromTheme = () => {
       favoriteSuperhero: selectedChild.favorite_superhero,
       favoriteCartoon: selectedChild.favorite_cartoon,
     };
-  };
-
-  const handleThemeClick = (theme: string, themeCategory: string) => {
-    const selectedChild = getSelectedChild();
     
-    if (!selectedChild) {
-      toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
-      return;
-    }
-
-    if (!canCreateStory) {
-      toast.error("Hikaye krediniz kalmadı. Lütfen paketinizi yükseltin.");
-      return;
-    }
-
-    setSelectedTheme({ theme, category: themeCategory });
-    setShowDialog(true);
-  };
-
-  const handleGenerateNow = async () => {
-    if (!selectedTheme) return;
-    
-    setShowDialog(false);
-    
-    const selectedChild = getSelectedChild();
-    if (!selectedChild) return;
-    
-    // Adjust page count based on subscription
-    const adjustedPageCount = getMaxPages(pageCount);
-    if (adjustedPageCount !== pageCount) {
-      toast.info(`Sayfa sayısı paketinize göre ${adjustedPageCount}'e ayarlandı.`);
-    }
-    
-    const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
-    const imageModel = (profile?.preferred_image_model as "dall-e-3" | "gpt-image-1" | "gemini-2.5-flash-image" | "gemini-3-pro-image") || "dall-e-3";
-    
-    const profileData = getProfileData();
-    
-    const book = await generateBook(selectedTheme.theme, language, adjustedPageCount, aiModel, profileData!, selectedTheme.category, imageModel);
+    const book = await generateBook(selectedTheme.theme, language, adjustedPageCount, aiModel, profileData, selectedTheme.category, imageModel);
     if (book) {
-      // Use credit after successful generation
       await useCredit();
       toast.success("Yeni kitap hazır!");
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
@@ -155,6 +134,9 @@ const CreateFromTheme = () => {
     };
   };
 
+  const selectedChild = getSelectedChild();
+  const backgroundInputData = getBackgroundInputData();
+
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-primary/10">
       <BookGenerationProgress progress={progress} />
@@ -193,71 +175,70 @@ const CreateFromTheme = () => {
           className="mb-6"
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          {themes.map((item) => (
-            <Button
-              key={item.theme}
-              onClick={() => handleThemeClick(item.theme, item.category)}
-              disabled={loading || !canCreateStory || children.length === 0}
-              variant="outline"
-              className="h-auto py-4 px-4 flex flex-col items-center gap-2 hover:bg-primary/10 transition-all rounded-2xl"
-            >
-              {loading ? (
-                <Loader2 className="w-8 h-8 animate-spin" />
-              ) : (
-                <span className="text-4xl">{item.emoji}</span>
-              )}
-              <span className="font-semibold text-sm text-center">{item.title}</span>
-            </Button>
-          ))}
+        {/* Theme Selection */}
+        <div className="mb-6">
+          <p className="text-sm font-medium mb-3">🎨 Tema Seçin</p>
+          <div className="grid grid-cols-2 gap-3">
+            {themes.map((item) => {
+              const isSelected = selectedTheme?.theme === item.theme;
+              return (
+                <Button
+                  key={item.theme}
+                  onClick={() => handleThemeSelect(item)}
+                  disabled={loading}
+                  variant="outline"
+                  className={cn(
+                    "h-auto py-4 px-4 flex flex-col items-center gap-2 transition-all rounded-2xl relative",
+                    isSelected 
+                      ? "ring-2 ring-primary bg-primary/10 border-primary" 
+                      : "hover:bg-primary/5"
+                  )}
+                >
+                  {isSelected && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                      <Check className="w-3 h-3 text-primary-foreground" />
+                    </div>
+                  )}
+                  <span className="text-4xl">{item.emoji}</span>
+                  <span className="font-semibold text-sm text-center">{item.title}</span>
+                </Button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Generation Options Dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl">
-              {selectedTheme && themes.find(t => t.theme === selectedTheme.theme)?.emoji} Hikaye Nasıl Oluşturulsun?
-            </DialogTitle>
-            <DialogDescription className="text-center">
-              Hikayeyi şimdi oluşturabilir veya arka planda oluşturulmasını bekleyebilirsiniz.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
+        {/* Generate Buttons */}
+        {selectedTheme && (
+          <div className="space-y-3">
             <Button
-              onClick={handleGenerateNow}
-              disabled={loading}
-              className="w-full py-6 text-lg rounded-2xl bg-gradient-to-r from-primary to-accent"
+              onClick={handleGenerate}
+              disabled={loading || !canCreateStory || children.length === 0}
+              className="w-full bg-gradient-to-r from-primary to-accent text-white py-6 text-lg rounded-2xl"
             >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Oluşturuluyor...
+                  Hikaye Oluşturuluyor...
                 </>
               ) : (
-                "✨ Şimdi Oluştur"
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Hikayeyi Oluştur
+                </>
               )}
             </Button>
-            
-            {selectedTheme && getBackgroundInputData() && (
+
+            {backgroundInputData && selectedChild && (
               <BackgroundGenerateButton
-                inputData={getBackgroundInputData()!}
-                childId={getSelectedChild()?.id || ""}
-                disabled={loading || !canCreateStory}
-                onSuccess={() => setShowDialog(false)}
+                inputData={backgroundInputData}
+                childId={selectedChild.id}
+                disabled={loading || !canCreateStory || children.length === 0}
+                onSuccess={() => setSelectedTheme(null)}
               />
             )}
           </div>
-          
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDialog(false)} className="w-full">
-              İptal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
 
       <BottomNavigation />
     </div>
