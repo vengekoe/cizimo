@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Check, Sparkles, ArrowUp, ArrowDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SubscriptionPlansProps {
   onSelectPlan?: (tier: SubscriptionTier) => void;
@@ -14,7 +15,7 @@ interface SubscriptionPlansProps {
 }
 
 export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: SubscriptionPlansProps) => {
-  const { subscription, allFeatures, changeTier, isChangingTier } = useSubscription();
+  const { subscription, allFeatures, changeTier, isChangingTier, allFeaturesLoading } = useSubscription();
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; tier: SubscriptionTier | null; isUpgrade: boolean }>({
     open: false,
     tier: null,
@@ -144,8 +145,17 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
     return "secondary";
   };
 
-  if (!allFeatures) return null;
+  if (allFeaturesLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-[300px] rounded-lg" />
+        ))}
+      </div>
+    );
+  }
 
+  if (!allFeatures || allFeatures.length === 0) return null;
   const selectedPlanFeatures = confirmDialog.tier 
     ? allFeatures.find(f => f.tier === confirmDialog.tier) 
     : null;
