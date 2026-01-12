@@ -25,12 +25,6 @@ const CreateCustom = () => {
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
   const [category, setCategory] = useState<string>("other");
-  const [aiModel, setAiModel] = useState<"gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview">(
-    (profile?.preferred_ai_model as any) || "gemini-3-pro-preview"
-  );
-  const [imageModel, setImageModel] = useState<"gemini-2.5-flash-image" | "gemini-3-pro-image">(
-    ((profile as any)?.preferred_image_model as any) || "gemini-2.5-flash-image"
-  );
 
   const handleGenerate = async () => {
     if (!customTheme.trim()) {
@@ -43,6 +37,9 @@ const CreateCustom = () => {
       toast.error("Lütfen önce bir çocuk seçin veya profil sayfasından çocuk ekleyin");
       return;
     }
+    
+    const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+    const imageModel = (profile?.preferred_image_model as "gemini-2.5-flash-image" | "gemini-3-pro-image") || "gemini-2.5-flash-image";
     
     const profileData = {
       childId: selectedChild.id,
@@ -94,10 +91,6 @@ const CreateCustom = () => {
           onPageCountChange={setPageCount}
           category={category}
           onCategoryChange={setCategory}
-          aiModel={aiModel}
-          onAiModelChange={setAiModel}
-          imageModel={imageModel}
-          onImageModelChange={setImageModel}
           className="mb-6"
         />
 

@@ -17,6 +17,7 @@ export interface ProfileData {
   favorite_superhero: string | null;
   favorite_cartoon: string | null;
   preferred_ai_model: string | null;
+  preferred_image_model: string | null;
   preferred_language: string | null;
   preferred_page_count: number | null;
 }

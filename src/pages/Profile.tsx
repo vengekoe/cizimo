@@ -27,6 +27,7 @@ const Profile = () => {
   // Form states
   const [displayName, setDisplayName] = useState("");
   const [preferredModel, setPreferredModel] = useState("gemini-3-pro-preview");
+  const [preferredImageModel, setPreferredImageModel] = useState("gemini-2.5-flash-image");
   const [preferredLanguage, setPreferredLanguage] = useState("tr");
   const [preferredPageCount, setPreferredPageCount] = useState("10");
 
@@ -43,6 +44,7 @@ const Profile = () => {
     if (profile) {
       setDisplayName(profile.display_name || "");
       setPreferredModel(profile.preferred_ai_model || "gemini-3-pro-preview");
+      setPreferredImageModel(profile.preferred_image_model || "gemini-2.5-flash-image");
       setPreferredLanguage(profile.preferred_language || "tr");
       setPreferredPageCount(profile.preferred_page_count?.toString() || "10");
     }
@@ -53,6 +55,7 @@ const Profile = () => {
     await updateProfile({
       display_name: displayName || null,
       preferred_ai_model: preferredModel,
+      preferred_image_model: preferredImageModel,
       preferred_language: preferredLanguage,
       preferred_page_count: parseInt(preferredPageCount),
     });
@@ -243,7 +246,7 @@ const Profile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="preferredModel">🤖 AI Modeli</Label>
+                  <Label htmlFor="preferredModel">🤖 Hikaye AI Modeli</Label>
                   <Select value={preferredModel} onValueChange={setPreferredModel}>
                     <SelectTrigger id="preferredModel">
                       <SelectValue />
@@ -252,6 +255,18 @@ const Profile = () => {
                       <SelectItem value="gemini-3-pro-preview">🤖 Gemini 3 Pro (Önerilen)</SelectItem>
                       <SelectItem value="gpt-5-mini">⚡ GPT-5 Mini</SelectItem>
                       <SelectItem value="gpt-5.1-mini-preview">✨ GPT-5.1 Mini Preview</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="preferredImageModel">🎨 Görsel AI Modeli</Label>
+                  <Select value={preferredImageModel} onValueChange={setPreferredImageModel}>
+                    <SelectTrigger id="preferredImageModel">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gemini-2.5-flash-image">⚡ Nano Banana (Hızlı)</SelectItem>
+                      <SelectItem value="gemini-3-pro-image">🎨 Gemini 3 Pro (Kaliteli)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
