@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, X, Sparkles, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { Check, Sparkles, ArrowUp, ArrowDown, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -14,7 +14,7 @@ interface SubscriptionPlansProps {
 }
 
 export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: SubscriptionPlansProps) => {
-  const { subscription, allFeatures, isInTrial, changeTier, isChangingTier } = useSubscription();
+  const { subscription, allFeatures, changeTier, isChangingTier } = useSubscription();
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; tier: SubscriptionTier | null; isUpgrade: boolean }>({
     open: false,
     tier: null,
@@ -42,15 +42,39 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
     library_backup: "Kütüphane yedekleme",
   };
 
-  const highlightedFeatures = [
-    "advanced_personalization",
-    "photo_story",
-    "audio_story",
-    "unlimited_revision",
-    "custom_illustration",
-  ];
-
   const tierOrder: SubscriptionTier[] = ["minik_masal", "masal_kesfifcisi", "masal_kahramani", "sonsuz_masal"];
+
+  // Get features that are NEW in this tier compared to previous tier
+  const getNewFeaturesForTier = (tierIndex: number) => {
+    if (!allFeatures || tierIndex < 0) return [];
+    
+    const currentPlan = allFeatures.find(f => f.tier === tierOrder[tierIndex]);
+    if (!currentPlan) return [];
+
+    // For first tier, show all its features
+    if (tierIndex === 0) {
+      return Object.entries(featureLabels)
+        .filter(([key]) => currentPlan[key as keyof typeof currentPlan] === true)
+        .map(([key, label]) => label);
+    }
+
+    // For other tiers, only show NEW features not in previous tier
+    const previousPlan = allFeatures.find(f => f.tier === tierOrder[tierIndex - 1]);
+    if (!previousPlan) return [];
+
+    const newFeatures: string[] = [];
+    
+    Object.entries(featureLabels).forEach(([key, label]) => {
+      const currentHas = currentPlan[key as keyof typeof currentPlan] === true;
+      const previousHad = previousPlan[key as keyof typeof previousPlan] === true;
+      
+      if (currentHas && !previousHad) {
+        newFeatures.push(label);
+      }
+    });
+
+    return newFeatures;
+  };
 
   const handleSelectPlan = (tier: SubscriptionTier) => {
     if (onSelectPlan) {
@@ -129,9 +153,12 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {allFeatures.map((plan) => {
+        {allFeatures.map((plan, index) => {
           const isCurrentPlan = subscription?.tier === plan.tier;
           const isPremium = plan.tier === "sonsuz_masal";
+          const tierIndex = tierOrder.indexOf(plan.tier);
+          const newFeatures = getNewFeaturesForTier(tierIndex);
+          const previousTierName = tierIndex > 0 ? TIER_NAMES[tierOrder[tierIndex - 1]] : null;
           
           return (
             <Card
@@ -174,6 +201,7 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
                 </div>
 
                 <div className="space-y-2 text-sm">
+                  {/* Core limits */}
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
                     <span>
@@ -197,29 +225,26 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
 
                   <hr className="my-2" />
 
-                  {Object.entries(featureLabels).map(([key, label]) => {
-                    const hasFeature = plan[key as keyof typeof plan];
-                    const isHighlighted = highlightedFeatures.includes(key);
-                    
-                    if (!hasFeature && !isHighlighted) return null;
-                    
-                    return (
-                      <div 
-                        key={key} 
-                        className={cn(
-                          "flex items-center gap-2",
-                          !hasFeature && "text-muted-foreground"
-                        )}
-                      >
-                        {hasFeature ? (
-                          <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <span className="text-xs">{label}</span>
+                  {/* Previous tier reference for tiers above first */}
+                  {previousTierName && (
+                    <div className="bg-muted/50 rounded-md p-2 mb-2">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {previousTierName} paketindeki tüm özellikler +
+                      </p>
+                    </div>
+                  )}
+
+                  {/* New features for this tier */}
+                  {newFeatures.length > 0 ? (
+                    newFeatures.map((feature, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="text-xs font-medium">{feature}</span>
                       </div>
-                    );
-                  })}
+                    ))
+                  ) : tierIndex === 0 ? (
+                    <p className="text-xs text-muted-foreground">Temel özellikler dahil</p>
+                  ) : null}
                 </div>
 
                 {allowChange && !isCurrentPlan && (
@@ -229,6 +254,9 @@ export const SubscriptionPlans = ({ onSelectPlan, allowChange = true }: Subscrip
                     onClick={() => handleSelectPlan(plan.tier)}
                     disabled={isChangingTier}
                   >
+                    {isChangingTier ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : null}
                     {getButtonText(plan.tier)}
                   </Button>
                 )}
