@@ -4,6 +4,7 @@ import { useBooks } from "@/hooks/useBooks";
 import { useProfile } from "@/hooks/useProfile";
 import { useChildren } from "@/hooks/useChildren";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,7 @@ import { BookGenerationProgress } from "@/components/BookGenerationProgress";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StoryChildSelector } from "@/components/story/StoryChildSelector";
 import { StorySettings } from "@/components/story/StorySettings";
+import { BackgroundGenerateButton } from "@/components/story/BackgroundGenerateButton";
 import { NoCreditsPrompt } from "@/components/subscription/UpgradePrompt";
 import { CreditDisplay } from "@/components/subscription/CreditDisplay";
 
@@ -20,6 +22,7 @@ const CreateCustom = () => {
   const { loading, progress, generateBook } = useBooks();
   const { profile } = useProfile();
   const { children, getSelectedChild } = useChildren();
+  const { user } = useAuth();
   const { canCreateStory, useCredit, getMaxPages, remainingCredits } = useSubscription();
   const navigate = useNavigate();
   
@@ -29,6 +32,25 @@ const CreateCustom = () => {
   );
   const [pageCount, setPageCount] = useState<number>(profile?.preferred_page_count || 5);
   const [category, setCategory] = useState<string>("other");
+
+  const getSelectedChildData = () => {
+    const selectedChild = getSelectedChild();
+    if (!selectedChild) return null;
+    
+    return {
+      childId: selectedChild.id,
+      childName: selectedChild.name,
+      displayName: selectedChild.name,
+      age: selectedChild.age,
+      gender: selectedChild.gender,
+      favoriteColor: selectedChild.favorite_color,
+      favoriteAnimal: selectedChild.favorite_animal,
+      favoriteTeam: selectedChild.favorite_team,
+      favoriteToy: selectedChild.favorite_toy,
+      favoriteSuperhero: selectedChild.favorite_superhero,
+      favoriteCartoon: selectedChild.favorite_cartoon,
+    };
+  };
 
   const handleGenerate = async () => {
     if (!customTheme.trim()) {
@@ -56,21 +78,9 @@ const CreateCustom = () => {
     const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
     const imageModel = (profile?.preferred_image_model as "gemini-2.5-flash-image" | "gemini-3-pro-image") || "gemini-2.5-flash-image";
     
-    const profileData = {
-      childId: selectedChild.id,
-      childName: selectedChild.name,
-      displayName: selectedChild.name,
-      age: selectedChild.age,
-      gender: selectedChild.gender,
-      favoriteColor: selectedChild.favorite_color,
-      favoriteAnimal: selectedChild.favorite_animal,
-      favoriteTeam: selectedChild.favorite_team,
-      favoriteToy: selectedChild.favorite_toy,
-      favoriteSuperhero: selectedChild.favorite_superhero,
-      favoriteCartoon: selectedChild.favorite_cartoon,
-    };
+    const profileData = getSelectedChildData();
     
-    const book = await generateBook(customTheme, language, adjustedPageCount, aiModel, profileData, category, imageModel);
+    const book = await generateBook(customTheme, language, adjustedPageCount, aiModel, profileData!, category, imageModel);
     if (book) {
       // Use credit after successful generation
       await useCredit();
@@ -79,6 +89,41 @@ const CreateCustom = () => {
       setTimeout(() => navigate(`/book/${book.id}`), 1000);
     }
   };
+
+  const getBackgroundInputData = () => {
+    const selectedChild = getSelectedChild();
+    if (!selectedChild || !customTheme.trim()) return null;
+
+    const aiModel = (profile?.preferred_ai_model as "gemini-3-pro-preview" | "gpt-5-mini" | "gpt-5.1-mini-preview") || "gemini-3-pro-preview";
+    const imageModel = (profile?.preferred_image_model as "gemini-2.5-flash-image" | "gemini-3-pro-image") || "gemini-2.5-flash-image";
+    const adjustedPageCount = getMaxPages(pageCount);
+
+    return {
+      theme: customTheme,
+      language,
+      pageCount: adjustedPageCount,
+      model: aiModel,
+      imageModel,
+      category,
+      isFromDrawing: false,
+      profile: {
+        childId: selectedChild.id,
+        childName: selectedChild.name,
+        displayName: selectedChild.name,
+        age: selectedChild.age,
+        gender: selectedChild.gender,
+        favoriteColor: selectedChild.favorite_color,
+        favoriteAnimal: selectedChild.favorite_animal,
+        favoriteTeam: selectedChild.favorite_team,
+        favoriteToy: selectedChild.favorite_toy,
+        favoriteSuperhero: selectedChild.favorite_superhero,
+        favoriteCartoon: selectedChild.favorite_cartoon,
+      },
+    };
+  };
+
+  const selectedChild = getSelectedChild();
+  const backgroundInputData = getBackgroundInputData();
 
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-background via-background to-orange-500/10">
@@ -152,23 +197,34 @@ const CreateCustom = () => {
           </div>
         </div>
 
-        <Button
-          onClick={handleGenerate}
-          disabled={loading || !customTheme.trim() || !canCreateStory || children.length === 0}
-          className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-6 text-lg rounded-2xl"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Hikaye Oluşturuluyor...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-2 h-5 w-5" />
-              Hikayeyi Oluştur
-            </>
+        <div className="space-y-3">
+          <Button
+            onClick={handleGenerate}
+            disabled={loading || !customTheme.trim() || !canCreateStory || children.length === 0}
+            className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-6 text-lg rounded-2xl"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Hikaye Oluşturuluyor...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-5 w-5" />
+                Hikayeyi Oluştur
+              </>
+            )}
+          </Button>
+
+          {backgroundInputData && selectedChild && (
+            <BackgroundGenerateButton
+              inputData={backgroundInputData}
+              childId={selectedChild.id}
+              disabled={loading || !customTheme.trim() || !canCreateStory || children.length === 0}
+              onSuccess={() => setCustomTheme("")}
+            />
           )}
-        </Button>
+        </div>
       </div>
 
       <BottomNavigation />
