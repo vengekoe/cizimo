@@ -133,13 +133,31 @@ const Landing = () => {
             </nav>
 
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/auth')}
-                className="rounded-full hidden sm:flex"
-              >
-                Giriş Yap
-              </Button>
+              {user ? (
+                <Button 
+                  onClick={() => navigate('/home')}
+                  className="rounded-full bg-gradient-to-r from-primary to-accent"
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Kütüphanem
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/auth')}
+                    className="rounded-full hidden sm:flex"
+                  >
+                    Giriş Yap
+                  </Button>
+                  <Button 
+                    onClick={() => navigate('/auth')}
+                    className="rounded-full bg-gradient-to-r from-primary to-accent"
+                  >
+                    Başla
+                  </Button>
+                </>
+              )}
               <Button 
                 onClick={() => navigate('/auth')}
                 className="rounded-full bg-gradient-to-r from-primary to-accent"
@@ -170,13 +188,23 @@ const Landing = () => {
                     {item.label}
                   </button>
                 ))}
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/auth')}
-                  className="mt-2"
-                >
-                  Giriş Yap
-                </Button>
+                {user ? (
+                  <Button 
+                    onClick={() => navigate('/home')}
+                    className="mt-2"
+                  >
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Kütüphanem
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/auth')}
+                    className="mt-2"
+                  >
+                    Giriş Yap
+                  </Button>
+                )}
               </div>
             </nav>
           )}
