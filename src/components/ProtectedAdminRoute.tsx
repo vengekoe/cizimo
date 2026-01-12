@@ -9,10 +9,10 @@ interface ProtectedAdminRouteProps {
 
 const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, subscriptionLoading } = useSubscription();
+  const { isAdmin, isAdminLoading } = useSubscription();
 
-  // Still loading auth or subscription data
-  if (authLoading || subscriptionLoading) {
+  // Still loading auth or admin check
+  if (authLoading || isAdminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
