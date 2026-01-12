@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getAccessToken } from "../_shared/google-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,14 +30,15 @@ serve(async (req) => {
     const { pages, theme } = requestSchema.parse(body);
     console.log(`Validated: ${pages.length} pages, theme length: ${theme.length}`);
     
-    // Use Google Gemini API directly
+    // Check for service account first, then API key
+    const accessToken = await getAccessToken();
     const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
     
-    if (!GOOGLE_AI_API_KEY) {
-      throw new Error("GOOGLE_AI_API_KEY yapılandırılmamış");
+    if (!accessToken && !GOOGLE_AI_API_KEY) {
+      throw new Error("No Gemini authentication available (neither service account nor API key)");
     }
 
-    console.log(`Generating ${pages.length} images using Google Gemini API for theme: ${theme}`);
+    console.log(`Generating ${pages.length} images using Google Gemini API ${accessToken ? '(service account)' : '(API key)'} for theme: ${theme}`);
 
     const images: (string | null)[] = [];
 
@@ -48,12 +50,26 @@ serve(async (req) => {
       try {
         console.log(`Calling Google Gemini API (attempt ${attempt})...`);
         
-        // Using gemini-2.0-flash-exp with image generation
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-          method: "POST",
-          headers: {
+        // Build request URL and headers based on auth method
+        let url: string;
+        let headers: Record<string, string>;
+        
+        if (accessToken) {
+          url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`;
+          headers = {
+            "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
-          },
+          };
+        } else {
+          url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GOOGLE_AI_API_KEY}`;
+          headers = {
+            "Content-Type": "application/json",
+          };
+        }
+        
+        const response = await fetch(url, {
+          method: "POST",
+          headers,
           body: JSON.stringify({
             contents: [{
               parts: [{ text: prompt }]

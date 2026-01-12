@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getAccessToken } from "../_shared/google-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,26 +105,48 @@ Toplam ${pageCount} sayfa olmalı ve her sayfa öncekinin devamı olmalı. Tüm 
         }),
       });
     } else {
-      // Use Google Gemini API
-      const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
-      if (!GOOGLE_AI_API_KEY) {
-        throw new Error("GOOGLE_AI_API_KEY is not configured");
+      // Use Google Gemini API - Try service account first, then API key
+      const accessToken = await getAccessToken();
+      
+      if (accessToken) {
+        console.log("Using service account authentication for Gemini");
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          }),
+        });
+      } else {
+        // Fallback to API key
+        const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+        if (!GOOGLE_AI_API_KEY) {
+          throw new Error("No Gemini authentication available (neither service account nor API key)");
+        }
+        console.log("Using API key authentication for Gemini");
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          }),
+        });
       }
-
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }],
-          generationConfig: {
-            responseMimeType: "application/json"
-          }
-        }),
-      });
     }
 
     if (!response.ok) {
